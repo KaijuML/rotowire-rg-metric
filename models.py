@@ -165,6 +165,25 @@ class ConvRgModel(RgModel):
         return self.linear(outputs)
 
 
+class Ensemble(torch.nn.Module):
+    def __init__(self, models, average_func='arithmetic'):
+        self.average_func = average_func
+        self.models = torch.nn.ModuleList(models)
+
+    def forward(self, inputs):
+
+        # compute the prediction for each model individualy
+        preds = [model(inputs) for model in self.models]
+
+        if self.average_func == 'geometric':
+            softmax = torch.nn.functional.log_softmax
+        else:
+            softmax = torch.nn.functional.softmax
+
+        # Ensemble scores
+        return sum(softmax(prd, dim=1) for prd in preds)
+
+
 available_models = {
     'lstm': RecurrentRgModel,
     'conv': ConvRgModel

@@ -7,10 +7,8 @@ import os
 
 class Inference:
     def __init__(self, vocab_prefix, min_entdist, min_numdist,
-                 average_func='arithmetic',
                  ignore_idx=None, logger=None):
         self.ignore_idx = ignore_idx
-        self.average_func = average_func
 
         self.min_entdist, self.min_numdist = min_entdist, min_numdist
 
@@ -64,14 +62,14 @@ class Inference:
                 numwrds.append(sent[i])
         return self.idxstostring(entwrds), self.idxstostring(numwrds)
 
-    def run(self, dataloader, models, tuple_filename):
+    def run(self, dataloader, model, tuple_filename):
 
         if os.path.exists(tuple_filename):
             self.logger.warn(f'Overwriting {tuple_filename}')
         with open(tuple_filename, mode="w", encoding='utf8') as f:
             pass  # touch
 
-        [model.eval() for model in models]
+        model.eval()
 
         boxscore_restarts = self.extract_boxscore_restarts(dataloader)
 
@@ -86,18 +84,7 @@ class Inference:
             batch_size = batch['sents'].size(0)
 
             # compute the prediction for each model individualy
-            preds = [
-                model([batch['sents'], batch['entdists'], batch['numdists']])
-                for model in models
-            ]
-
-            if self.average_func == 'geometric':
-                softmax = torch.nn.functional.log_softmax
-            else:
-                softmax = torch.nn.functional.softmax
-
-            # Ensemble scores
-            preds = sum(softmax(prd, dim=1) for prd in preds)
+            preds = model([batch['sents'], batch['entdists'], batch['numdists']])
 
             # We create a tensor with 1 for every correct label, zero otherwise
             g_one_hot = torch.zeros(batch_size, preds.size(1))
