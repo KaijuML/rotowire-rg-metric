@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset as PytorchDataset
 
 import numpy as np
 import torch
@@ -69,13 +69,13 @@ def make_datasets(h5_filename, sets=None):
 
     file.close()
     return {
-        dname: ExtractionDataset(**datasets[dname])
+        dname: __datasets[dname](**datasets[dname])
         for dname in sets
     }
 
 
-class ExtractionDataset(Dataset):
-    def __init__(self, entdists, labels, lens, numdists, sents, boxrestartidxs=None):
+class Dataset(PytorchDataset):
+    def __init__(self, entdists, labels, lens, numdists, sents):
         self._len = entdists.size(0)
         assert all(tensor.size(0) == len(self)
                    for tensor in [entdists, labels, lens, numdists, sents])
@@ -85,11 +85,6 @@ class ExtractionDataset(Dataset):
         self.lens = lens
         self.numdists = numdists
         self.sents = sents
-        self.boxrestartidxs = boxrestartidxs
-
-    def clamp_dists(self, min_entdist, max_entdist, min_numdist, max_numdist):
-        self.entdists.clamp_(min_entdist, max_entdist)
-        self.numdists.clamp_(min_numdist, max_numdist)
 
     def shift_dists(self, min_entdist, min_numdist):
         self.entdists.add_(-min_entdist)
@@ -97,22 +92,50 @@ class ExtractionDataset(Dataset):
 
     def __getitem__(self, item):
         if isinstance(item, (int, slice)):
-            ret = {
+            return {
+                'sents': self.sents[item],
                 'entdists': self.entdists[item],
                 'numdists': self.numdists[item],
-                'sents': self.sents[item],
                 'lens': self.lens[item],
                 'labels': self.labels[item],
             }
-            if self.boxrestartidxs is not None:
-                ret['boxrestartidxs'] = self.boxrestartidxs[item]
-            return ret
 
         if (ret := getattr(self, item, None)) is not None:
             return ret
+
+        raise AttributeError(f'{self.__class__}')
 
     def __len__(self):
         return self._len
 
     def __repr__(self):
-        return f'ExtractionDataset(n_examples={len(self)})'
+        return f'{self.__class__.__name__.title()}(n_examples={len(self)})'
+
+
+class EvaluationDataset(Dataset):
+    def __init__(self, entdists, labels, lens, numdists, sents, boxrestartidxs=None):
+        super().__init__(entdists, labels, lens, numdists, sents)
+        self.boxrestartidxs = boxrestartidxs
+
+        self.labelnums = self.labels[:, -1]
+        self.labels = self.labels[:, :-1]
+
+    def clamp_dists(self, min_entdist, max_entdist, min_numdist, max_numdist):
+        self.entdists.clamp_(min_entdist, max_entdist)
+        self.numdists.clamp_(min_numdist, max_numdist)
+
+    def __getitem__(self, item):
+        ret = super().__getitem__(item)
+
+        if isinstance(item, (int, slice)):
+            ret['labelnums'] = self.labelnums[item]
+            if self.boxrestartidxs is not None:
+                ret['boxrestartidxs'] = self.boxrestartidxs[item]
+        return ret
+
+
+__datasets = {
+    'tr': Dataset,
+    'val': EvaluationDataset,
+    'test': EvaluationDataset,
+}
