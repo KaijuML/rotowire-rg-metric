@@ -2,8 +2,11 @@ from torch.utils.data._utils.collate import default_collate
 from torch.utils.data import DataLoader, Sampler
 
 
-def build_dataset_iter(dataset, batch_size, paddings, is_eval=False):
-    collate_fn = build_collate_fn(*paddings)
+def build_dataset_iter(dataset, batch_size, vocab_sizes, is_eval=False):
+    if dataset is None:
+        return None
+
+    collate_fn = build_collate_fn(*vocab_sizes)
 
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=not is_eval,
                         collate_fn=collate_fn, pin_memory=True, drop_last=False)
