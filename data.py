@@ -14,7 +14,7 @@ def prep_data(train_filename, eval_filename=None, is_test=False, is_just_eval=Fa
 
     test = None
     if eval_filename is not None:
-        test = load_datasets(eval_filename, do_test=True)
+        test = load_datasets(eval_filename, do_val=True).pop('val')
 
     min_entdist = min(train['entdists'].min(), val['entdists'].min())
     min_numdist = min(train['numdists'].min(), val['numdists'].min())
@@ -23,9 +23,9 @@ def prep_data(train_filename, eval_filename=None, is_test=False, is_just_eval=Fa
     val.shift_dists(min_entdist=min_entdist, min_numdist=min_numdist)
 
     if test is not None:
-        test.clamp_dist(min_entdist=min_entdist, min_numdist=min_numdist,
-                        max_entdist=train['entdists'].max(),
-                        max_numdist=train['numdists'].max())
+        test.clamp_dists(min_entdist=min_entdist, min_numdist=min_numdist,
+                         max_entdist=train['entdists'].max(),
+                         max_numdist=train['numdists'].max())
         test.shift_dists(min_entdist=min_entdist, min_numdist=min_numdist)
 
     nlabels = train['labels'].max().item() + 1
@@ -64,8 +64,8 @@ def make_datasets(h5_filename, sets=None):
                 dataset[dname[len(prefix):]] = torch.tensor(np.array(dvals))
                 break
         else:
-            assert dname == 'boxrestartidxs' and 'test' in datasets, dname
-            datasets['val'] = torch.tensor(np.array(dvals))
+            assert dname == 'boxrestartidxs'
+            datasets['val']['boxrestartidxs'] = torch.tensor(np.array(dvals))
 
     file.close()
     return {
