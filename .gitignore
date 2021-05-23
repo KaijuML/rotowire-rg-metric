@@ -137,3 +137,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Application specific files
+data/*
+!data/sample*
+
+# Sublime project
+*sublime*
