@@ -1,4 +1,5 @@
 import torch
+import tqdm
 
 
 class MultilabelCrossEntropyLoss(torch.nn.Module):
@@ -71,11 +72,11 @@ class Trainer:
 
         self.criterion = MultilabelCrossEntropyLoss()
 
-    def run_one_epoch(self, model, dataloader):
+    def run_one_epoch(self, model, dataloader, epoch):
         running_loss = 0
 
         model.train()
-        for batch in dataloader:
+        for batch in tqdm.tqdm(dataloader, desc=f"Epoch {epoch}"):
             self.optimizer.zero_grad()
             prd = model([batch['sents'], batch['entdists'], batch['numdists']])
             tgt = batch['labels']
@@ -102,7 +103,7 @@ class Trainer:
         for epoch in range(1, n_epochs + 1):
             self.logger.info(f"Epoch {epoch} ({lr=})")
 
-            trainloss = self.run_one_epoch(model, train_dataloader)
+            trainloss = self.run_one_epoch(model, train_dataloader, epoch)
             trainloss = trainloss.item() / len(train_dataloader)
 
             self.logger.info(f"train loss: {trainloss:.5f}")
