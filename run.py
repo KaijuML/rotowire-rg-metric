@@ -1,7 +1,9 @@
 from argparse import ArgumentParser
+import os
 
-from models import ConvRgModel, RecurrentRgModel
+from models import RgModel, ConvRgModel, RecurrentRgModel
 from sampler import build_dataset_iter
+from inference import Inference
 from data import prep_data
 from trainer import Trainer
 
@@ -24,14 +26,15 @@ def get_parser():
                             'from generated data')
     group.add_argument('--savefile', dest='savefile', default='',
                        help='path to a directory where to model should be saved')
-    group.add_argument('--eval-models', dest='eval_models', default='',
-                       help='path to trained extractor models')
-    group.add_argument('--dict-pfx', dest='dict_pfx', default='',
+    group.add_argument('--eval-models', dest='eval_models', default=None,
+                       help='path to a directory with trained extractor models')
+    group.add_argument('--vocab-prefix', dest='vocab_prefix', default='',
                        help='prefix of .dict and .labels files')
 
     group = parser.add_argument_group('Evaluation options')
-    group.add_argument('--geom', dest='geom', default=False,
-                       action="store_true", help='average models geometrically')
+    group.add_argument('--average-func', dest='average_func', default='arithmetic',
+                       choices=['geometric', 'arithmetic'],
+                       help='Use geometric/arithmetic mean to ensemble models')
 
     group = parser.add_argument_group('Training options')
     group.add_argument('--epochs', dest='epochs', default=10, type=int,
@@ -87,7 +90,23 @@ def main(args=None):
     vocab_sizes = [p + 1 for p in vocab_sizes]
 
     if args.just_eval:
-        raise RuntimeError('No puedo just_eval right now')
+
+        # Load models
+        models = [
+            RgModel.from_file(os.path.join(args.eval_models, filename))
+            for filename in os.listdir(args.eval_models)
+            if filename.endswith('.pt')
+        ]
+
+        min_entdist, min_numdist = min_dists
+
+        inference = Inference(args.vocab_prefix, min_entdist, min_numdist,
+                              average_func=args.average_func,
+                              ignore_idx=args.ignore_idx, logger=None)
+
+        inference.run(loaders[2], models, f'{args.preddata}-tuples.txt')
+
+        return
 
     # Building models
     if args.model == 'lstm':
