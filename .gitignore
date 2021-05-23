@@ -6,6 +6,16 @@ __pycache__/
 # C extensions
 *.so
 
+# PyCharm
+# See issue#3451 for more info https://github.com/github/gitignore/pull/3451
+#  JetBrains specific template is maintainted in a separate JetBrains.gitignore
+#  that can be found at:
+#    https://github.com/github/gitignore/blob/master/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a
+#  more nuclear option (not recommended) you can uncomment the following to
+#  ignore the entire idea folder.
+.idea/
+
 # Distribution / packaging
 .Python
 build/
