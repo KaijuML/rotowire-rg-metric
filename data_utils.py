@@ -15,14 +15,13 @@ import pprint
 pp = pprint.PrettyPrinter(indent=2)
 
 
-prons = set(["he", "He", "him", "Him", "his", "His", "they", "They", "them", "Them", "their", "Their"]) # leave out "it"
-singular_prons = set(["he", "He", "him", "Him", "his", "His"])
-plural_prons = set(["they", "They", "them", "Them", "their", "Their"])
+prons = {"he", "He", "him", "Him", "his", "His", "they", "They", "them", "Them", "their", "Their"}  # leave out "it"
+singular_prons = {"he", "He", "him", "Him", "his", "His"}
+plural_prons = {"they", "They", "them", "Them", "their", "Their"}
 
-number_words = set(["one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-                    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-                    "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty",
-                    "sixty", "seventy", "eighty", "ninety", "hundred", "thousand"])
+number_words = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+                "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty",
+                "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand"}
 
 
 def get_ents(dat):
@@ -115,13 +114,14 @@ def extract_entities(sent, all_ents, prons, prev_ents=None, resolve_prons=False,
 
 
 def annoying_number_word(sent, i):
-    ignores = set(["three point", "three - point", "three - pt", "three pt"])
+    ignores = {"three point", "three - point", "three - pt", "three pt"}
     return " ".join(sent[i:i+3]) not in ignores and " ".join(sent[i:i+2]) not in ignores
+
 
 def extract_numbers(sent):
     sent_nums = []
     i = 0
-    ignores = set(["three point", "three-point", "three-pt", "three pt"])
+    ignores = {"three point", "three-point", "three-pt", "three pt"}
     #print sent
     while i < len(sent):
         toke = sent[i]
@@ -236,6 +236,7 @@ def get_rels(entry, ents, nums, players, teams, cities):
                     rels.append((ent, numtup, "NONE", None)) # should i specialize the NONE labels too?
     return rels
 
+
 def append_candidate_rels(entry, spans, summ, all_ents, prons, players, teams, cities, candrels):
     """
     appends tuples of form (sentence_tokens, [rels]) to candrels
@@ -258,6 +259,7 @@ def append_candidate_rels(entry, spans, summ, all_ents, prons, players, teams, c
         if len(rels) > 0:
             candrels.append((tokes, rels))
     return candrels
+
 
 def get_datasets(path="../boxscore-data/rotowire"):
 
@@ -289,6 +291,7 @@ def get_datasets(path="../boxscore-data/rotowire"):
     del teams
     del cities
     return extracted_stuff
+
 
 def append_to_data(tup, sents, lens, entdists, numdists, labels, vocab, labeldict, max_len):
     """
@@ -334,6 +337,7 @@ def append_multilabeled_data(tup, sents, lens, entdists, numdists, labels, vocab
         numdists.append(num_dists)
         labels.append([labeldict[label] for label in label_list])
 
+
 def append_labelnums(labels):
     labelnums = [len(labellist) for labellist in labels]
     max_num_labels = max(labelnums)
@@ -344,6 +348,7 @@ def append_labelnums(labels):
         labellist.extend([-1]*(max_num_labels - len(labellist)))
         labellist.append(labelnums[i])
 
+
 # for full sentence IE training
 def save_full_sent_data(outfile, path="../boxscore-data/rotowire", multilabel_train=False, nonedenom=0):
     datasets = get_datasets(path)
@@ -352,7 +357,7 @@ def save_full_sent_data(outfile, path="../boxscore-data/rotowire", multilabel_tr
     [word_counter.update(tup[0]) for tup in datasets[0]]
 
     # CT - changed this to a comprehension
-    word_counter = {k:v for k,v in word_counter.items() if v > 1}
+    word_counter = {k: v for k, v in word_counter.items() if v > 1}
 
     # for k in word_counter.keys():
     #     if word_counter[k] < 2:
@@ -491,7 +496,7 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
     for i, entry in enumerate(valdata):
         # CT - TODO - refactor this creation of summ, spans, tokens etc.
         summ = gens[i]
-        spans = entry['spans'] if 'spans' in entry else None
+        spans = entry.get('spans', None)
 
         append_candidate_rels(entry, spans, summ, all_ents, prons, players, teams, cities, nugz)
         sent_reset_indices.add(len(nugz))
@@ -522,15 +527,18 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
 
 ################################################################################
 
-bs_keys = ["PLAYER-PLAYER_NAME", "PLAYER-START_POSITION", "PLAYER-MIN", "PLAYER-PTS",
-     "PLAYER-FGM", "PLAYER-FGA", "PLAYER-FG_PCT", "PLAYER-FG3M", "PLAYER-FG3A",
-     "PLAYER-FG3_PCT", "PLAYER-FTM", "PLAYER-FTA", "PLAYER-FT_PCT", "PLAYER-OREB",
-     "PLAYER-DREB", "PLAYER-REB", "PLAYER-AST", "PLAYER-TO", "PLAYER-STL", "PLAYER-BLK",
-     "PLAYER-PF", "PLAYER-FIRST_NAME", "PLAYER-SECOND_NAME"]
+
+bs_keys = ["PLAYER-PLAYER_NAME", "PLAYER-START_POSITION", "PLAYER-MIN",
+           "PLAYER-PTS", "PLAYER-FGM", "PLAYER-FGA", "PLAYER-FG_PCT",
+           "PLAYER-FG3M", "PLAYER-FG3A", "PLAYER-FG3_PCT", "PLAYER-FTM",
+           "PLAYER-FTA", "PLAYER-FT_PCT", "PLAYER-OREB", "PLAYER-DREB",
+           "PLAYER-REB", "PLAYER-AST", "PLAYER-TO", "PLAYER-STL", "PLAYER-BLK",
+           "PLAYER-PF", "PLAYER-FIRST_NAME", "PLAYER-SECOND_NAME"]
 
 ls_keys = ["TEAM-PTS_QTR1", "TEAM-PTS_QTR2", "TEAM-PTS_QTR3", "TEAM-PTS_QTR4",
-    "TEAM-PTS", "TEAM-FG_PCT", "TEAM-FG3_PCT", "TEAM-FT_PCT", "TEAM-REB",
-    "TEAM-AST", "TEAM-TOV", "TEAM-WINS", "TEAM-LOSSES", "TEAM-CITY", "TEAM-NAME"]
+           "TEAM-PTS", "TEAM-FG_PCT", "TEAM-FG3_PCT", "TEAM-FT_PCT", "TEAM-REB",
+           "TEAM-AST", "TEAM-TOV", "TEAM-WINS", "TEAM-LOSSES", "TEAM-CITY",
+           "TEAM-NAME"]
 
 NUM_PLAYERS = 13
 
@@ -553,6 +561,7 @@ def get_player_idxs(entry):
                 vis_players.append(str(i))
                 num_vis += 1
     return home_players, vis_players
+
 
 def box_preproc2(trdata):
     """
@@ -586,6 +595,7 @@ def box_preproc2(trdata):
 
     return srcs
 
+
 def linearized_preproc(srcs):
     """
     maps from a num-rows length list of lists of ntrain to an
@@ -599,6 +609,7 @@ def linearized_preproc(srcs):
         lsrcs.append(src_i)
     return lsrcs
 
+
 def fix_target_idx(summ, assumed_idx, word, neighborhood=5):
     """
     tokenization can mess stuff up, so look around
@@ -609,6 +620,7 @@ def fix_target_idx(summ, assumed_idx, word, neighborhood=5):
         elif assumed_idx - i >= 0 and assumed_idx - i < len(summ) and summ[assumed_idx - i] == word:
             return assumed_idx - i
     return None
+
 
 # for each target word want to know where it could've been copied from
 def make_pointerfi(outfi, inp_file="rotowire/train.json", resolve_prons=False):
@@ -844,43 +856,28 @@ def save_coref_task_data(outfile, inp_file="full_newnba_prepdata2.json"):
             f.write("%s %d \n" % (revlabels[i], i))
 
 
-# if sys.argv[1] == "prep_gen":
-#     generated_input = sys.argv[2]
-#     dict_pfx = sys.argv[3]
-#     output_fi = sys.argv[4]
-#     if len(sys.argv) > 5:
-#         start_after = int(sys.argv[5])
-#         prep_generated_data(generated_input, dict_pfx, output_fi, start_after)
-#     else:
-#         prep_generated_data(generated_input, dict_pfx, output_fi)
-# else:
-#     train_output_fi = sys.argv[2]
-#     multilabel_train = sys.argv[3].lower() == "true"
-#     save_full_sent_data(train_output_fi, multilabel_train=multilabel_train)
+if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(description='Utility Functions')
+    parser.add_argument('-input_path', type=str, default="",
+                        help="path to input")
+    parser.add_argument('-output_fi', type=str, default="",
+                        help="desired path to output file")
+    parser.add_argument('-gen_fi', type=str, default="",
+                        help="path to file containing generated summaries")
+    parser.add_argument('-dict_pfx', type=str, default="roto-ie",
+                        help="prefix of .dict and .labels files")
+    parser.add_argument('-mode', type=str, default='ptrs',
+                        choices=['ptrs', 'make_ie_data', 'prep_gen_data'],
+                        help="what utility function to run")
+    parser.add_argument('-test', action='store_true', help='use test data')
 
+    args = parser.parse_args()
 
-
-parser = argparse.ArgumentParser(description='Utility Functions')
-parser.add_argument('-input_path', type=str, default="",
-                    help="path to input")
-parser.add_argument('-output_fi', type=str, default="",
-                    help="desired path to output file")
-parser.add_argument('-gen_fi', type=str, default="",
-                    help="path to file containing generated summaries")
-parser.add_argument('-dict_pfx', type=str, default="roto-ie",
-                    help="prefix of .dict and .labels files")
-parser.add_argument('-mode', type=str, default='ptrs',
-                    choices=['ptrs', 'make_ie_data', 'prep_gen_data'],
-                    help="what utility function to run")
-parser.add_argument('-test', action='store_true', help='use test data')
-
-args = parser.parse_args()
-
-if args.mode == 'ptrs':
-    make_pointerfi(args.output_fi, inp_file=args.input_path)
-elif args.mode == 'make_ie_data':
-    save_full_sent_data(args.output_fi, path=args.input_path, multilabel_train=True)
-elif args.mode == 'prep_gen_data':
-    prep_generated_data(args.gen_fi, args.dict_pfx, args.output_fi, path=args.input_path,
-                        test=args.test)
+    if args.mode == 'ptrs':
+        make_pointerfi(args.output_fi, inp_file=args.input_path)
+    elif args.mode == 'make_ie_data':
+        save_full_sent_data(args.output_fi, path=args.input_path, multilabel_train=True)
+    elif args.mode == 'prep_gen_data':
+        prep_generated_data(args.gen_fi, args.dict_pfx, args.output_fi, path=args.input_path,
+                            test=args.test)
