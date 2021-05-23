@@ -129,8 +129,6 @@ class EvaluationDataset(Dataset):
 
         if isinstance(item, (int, slice)):
             ret['labelnums'] = self.labelnums[item]
-            if self.boxrestartidxs is not None:
-                ret['boxrestartidxs'] = self.boxrestartidxs[item]
         return ret
 
 
