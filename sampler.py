@@ -1,5 +1,5 @@
 from torch.utils.data._utils.collate import default_collate
-from torch.utils.data import DataLoader, Sampler
+from torch.utils.data import DataLoader
 
 
 def build_dataset_iter(dataset, batch_size, vocab_sizes, is_eval=False):
