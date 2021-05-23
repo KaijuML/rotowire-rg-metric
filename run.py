@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 import os
 
-from models import RgModel, ConvRgModel, RecurrentRgModel
+from models import RgModel, ConvRgModel, RecurrentRgModel, Ensemble
 from sampler import build_dataset_iter
 from inference import Inference
 from data import prep_data
@@ -46,7 +46,7 @@ def get_parser():
                        help='learning rate')
     group.add_argument('--lr-decay', dest='lr_decay', default=0.5, type=float,
                        help='decay factor')
-    group.add_argument('--clip', dest='clip', default=5,
+    group.add_argument('--max-grad-norm', dest='max_grad_norm', default=5,
                        help='clip grads so they do not exceed this')
     group.add_argument('--seed', dest='seed', default=3435, type=int,
                        help='Random seed')
@@ -98,13 +98,14 @@ def main(args=None):
             if filename.endswith('.pt')
         ]
 
+        model = Ensemble(models, average_func=args.average_func)
+
         min_entdist, min_numdist = min_dists
 
         inference = Inference(args.vocab_prefix, min_entdist, min_numdist,
-                              average_func=args.average_func,
                               ignore_idx=args.ignore_idx, logger=None)
 
-        inference.run(loaders[2], models, f'{args.preddata}-tuples.txt')
+        inference.run(loaders[2], model, f'{args.preddata}-tuples.txt')
 
         return
 

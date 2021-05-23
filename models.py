@@ -21,9 +21,9 @@ class RgModel(torch.nn.Module):
     def save_hparams(self, **kwargs):
         self.hparams = kwargs
 
-    def save(self, directory, epoch, trainloss, evalloss):
+    def save(self, directory, epoch, accuracy, recall):
         filename = f'{self.class_name.lower()}.epoch_{epoch}'
-        filename += f'.trloss={trainloss:.5f}.valloss={evalloss:.5f}.pt'
+        filename += f'.acc={accuracy:.3f}.rec={recall:.3f}.pt'
         filename = os.path.join(directory, filename)
 
         torch.save({
@@ -32,8 +32,8 @@ class RgModel(torch.nn.Module):
             "model_state_dict": self.state_dict(),
 
             "epoch": epoch,
-            "trainloss": trainloss,
-            "evalloss": evalloss
+            "accuracy": accuracy,
+            "recall": recall
         }, filename)
 
         return filename

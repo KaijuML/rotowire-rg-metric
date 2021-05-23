@@ -62,10 +62,12 @@ class MultilabelCrossEntropyLoss(torch.nn.Module):
 
 
 class Trainer:
-    def __init__(self, logger, save_directory, max_grad_norm=None):
+    def __init__(self, logger, save_directory, max_grad_norm=None, ignore_idx=None):
         self.logger = logger
 
         self.save_directory = save_directory
+
+        self.ignore_idx = ignore_idx
 
         self.max_grad_norm = max_grad_norm
         self.optimizer = None
@@ -92,14 +94,50 @@ class Trainer:
 
         return running_loss
 
-    def train(self, model, loaders, n_epochs=1, lr=0.1):
+    def compute_multilabel_acc(self, model, dataloader):
+
+        correct, total, ignored = 0, 0, 0
+        pred5s, true5s = 0, 0
+        nonnolabel = 0
+
+        for batch in tqdm.tqdm(dataloader, desc="Computing accuracy"):
+            batch_size = batch['sents'].size(0)
+
+            preds = model([batch['sents'], batch['entdists'], batch['numdists']])
+
+            nonnolabel = nonnolabel + batch["labels"][:, 0].ne(self.ignore_idx).sum()
+            g_one_hot = torch.zeros(batch_size, preds.size(1))
+            preds = preds.argmax(dim=1)
+
+            numpreds = 0
+
+            iterable = zip(preds, batch["labels"], batch["labelnums"])
+            for idx, (pred, labels, labelnum) in enumerate(iterable):
+                if pred != self.ignore_idx:
+                    g_one_hot[idx].index_fill_(0, labels[0:labelnum], 1)
+                    numpreds = numpreds + 1
+
+            g_correct_buf = torch.gather(g_one_hot, 1, preds.unsqueeze(1))
+            correct = correct + g_correct_buf.sum()
+            total = total + numpreds
+            ignored = ignored + batch_size - numpreds
+
+        accuracy = correct / total
+        recall = correct / nonnolabel
+
+        self.logger.info(f"recall: {recall.item():.3f}%")
+        self.logger.info(f"ignored: {ignored/(ignored+total):.3f}%")
+
+        return accuracy, recall
+
+    def train(self, model, loaders, n_epochs=1, lr=0.1, lr_decay=1):
         model.count_parameters(self.logger.info)
 
         train_dataloader, val_dataloader, test_dataloader = loaders
 
         self.optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
-        best_acc = 0
+        prev_loss = float('inf')
         for epoch in range(1, n_epochs + 1):
             self.logger.info(f"Epoch {epoch} ({lr=})")
 
@@ -108,14 +146,13 @@ class Trainer:
 
             self.logger.info(f"train loss: {trainloss:.5f}")
 
-            evalloss = .0
-            # acc, rec = get_multilabel_acc(model, valbatches, opt.ignore_idx)
-            # logger.info("acc:{}".format(acc.item()))
+            accuracy, recall = self.compute_multilabel_acc(model, val_dataloader)
+            self.logger.info(f"acc:{accuracy.item()}")
 
-            filename = model.save(self.save_directory, epoch, trainloss, evalloss)
+            filename = model.save(self.save_directory, epoch, accuracy, recall)
             self.logger.info(f"saving current checkpoint to {filename}")
 
-            # valloss = -acc
-            # if valloss >= prev_loss and opt.lr > 0.0001:
-            #     opt.lr = opt.lr * opt.lr_decay
-            # prev_loss = valloss
+            evalloss = -accuracy
+            if evalloss >= prev_loss and lr > 0.0001:
+                lr *= lr_decay
+            prev_loss = evalloss
