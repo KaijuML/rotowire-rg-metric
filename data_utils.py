@@ -1,17 +1,21 @@
-import sys, codecs, json, os
-from collections import Counter, defaultdict
-from nltk import sent_tokenize, word_tokenize
-import numpy as np
-import h5py
-# import re
-import random
-import math
 from text2num import text2num, NumberException
+from collections import Counter, defaultdict
+from nltk import sent_tokenize
+from log_utils import logger
+
+import numpy as np
 import argparse
+import random
+import codecs
+import pprint
+import tqdm
+import json
+import math
+import h5py
+import os
+
 
 random.seed(2)
-
-import pprint
 pp = pprint.PrettyPrinter(indent=2)
 
 
@@ -122,7 +126,6 @@ def extract_numbers(sent):
     sent_nums = []
     i = 0
     ignores = {"three point", "three-point", "three-pt", "three pt"}
-    #print sent
     while i < len(sent):
         toke = sent[i]
         a_number = False
@@ -162,15 +165,12 @@ def get_player_idx(bs, entname):
         if len(keys) > 1: # take the earliest one
             keys.sort(key = lambda x: int(x))
             keys = keys[:1]
-            #print "picking", bs["PLAYER_NAME"][keys[0]]
     if len(keys) == 0:
         for k,v in bs["FIRST_NAME"].items():
             if entname == v:
                 keys.append(k)
         if len(keys) > 1: # if we matched on first name and there are a bunch just forget about it
             return None
-    #if len(keys) == 0:
-        #print "Couldn't find", entname, "in", bs["PLAYER_NAME"].values()
     assert len(keys) <= 1, entname + " : " + str(bs["PLAYER_NAME"].values())
     return keys[0] if len(keys) > 0 else None
 
@@ -263,6 +263,7 @@ def append_candidate_rels(entry, spans, summ, all_ents, prons, players, teams, c
 
 def get_datasets(path="../boxscore-data/rotowire"):
 
+    logger.info('Loading training data for the IE Extractor')
     with codecs.open(os.path.join(path, "train.json"), "r", "utf-8") as f:
         trdata = json.load(f)
 
@@ -273,12 +274,14 @@ def get_datasets(path="../boxscore-data/rotowire"):
 
     with codecs.open(os.path.join(path, "test.json"), "r", "utf-8") as f:
         testdata = json.load(f)
+    logger.info('Data loaded.')
         
     extracted_stuff = []
-    datasets = [trdata, valdata, testdata]
-    for dataset in datasets:
+    datasets = [['train', trdata], ['validation', valdata], ['test', testdata]]
+    for dname, dataset in datasets:
         nugz = []
-        for i, entry in enumerate(dataset):
+        iterable = enumerate(dataset)
+        for i, entry in tqdm.tqdm(iterable, total=len(dataset), desc=f'Parsing {dname}'):
             # CT - Pickup the sliced data span based tokenization if present
             summ = " ".join(entry['summary'])
             spans = entry['spans'] if 'spans' in entry else None
@@ -341,7 +344,7 @@ def append_multilabeled_data(tup, sents, lens, entdists, numdists, labels, vocab
 def append_labelnums(labels):
     labelnums = [len(labellist) for labellist in labels]
     max_num_labels = max(labelnums)
-    print("max num labels", max_num_labels)
+    logger.info(f"max num labels: {max_num_labels}")
 
     # append number of labels to labels
     for i, labellist in enumerate(labels):
@@ -378,7 +381,7 @@ def save_full_sent_data(outfile, path="../boxscore-data/rotowire", multilabel_tr
     print("max tr sentence length:", max_trlen)
 
     # do training data
-    for tup in datasets[0]:
+    for tup in tqdm.tqdm(datasets[0], desc='Building training examples'):
         if multilabel_train:
             append_multilabeled_data(tup, trsents, trlens, trentdists, trnumdists, trlabels, vocab, labeldict, max_trlen)
         else:
@@ -404,28 +407,29 @@ def save_full_sent_data(outfile, path="../boxscore-data/rotowire", multilabel_tr
         trnumdists = [thing for i,thing in enumerate(trnumdists) if i not in ignore_idxs]
         trlabels = [thing for i,thing in enumerate(trlabels) if i not in ignore_idxs]
 
-    print(len(trsents), "training examples")
+    logger.info(f'{len(trsents)} validation examples')
 
     # do val, which we also consider multilabel
     max_vallen = max((len(tup[0]) for tup in datasets[1]))
-    for tup in datasets[1]:
+    for tup in tqdm.tqdm(datasets[1], desc='Building validation examples'):
         #append_to_data(tup, valsents, vallens, valentdists, valnumdists, vallabels, vocab, labeldict, max_len)
         append_multilabeled_data(tup, valsents, vallens, valentdists, valnumdists, vallabels, vocab, labeldict, max_vallen)
 
     append_labelnums(vallabels)
 
-    print(len(valsents), "validation examples")
+    logger.info(f'{len(valsents)} validation examples')
 
     # do test, which we also consider multilabel
     max_testlen = max((len(tup[0]) for tup in datasets[2]))
-    for tup in datasets[2]:
+    for tup in tqdm.tqdm(datasets[2], desc='Building test examples'):
         #append_to_data(tup, valsents, vallens, valentdists, valnumdists, vallabels, vocab, labeldict, max_len)
         append_multilabeled_data(tup, testsents, testlens, testentdists, testnumdists, testlabels, vocab, labeldict, max_testlen)
 
     append_labelnums(testlabels)
 
-    print(len(testsents), "test examples")
+    logger.info(f'{len(testsents)} test examples')
 
+    logger.info('Serializing data to disc.')
     h5fi = h5py.File(outfile, "w")
     h5fi["trsents"] = np.array(trsents, dtype=int)
     h5fi["trlens"] = np.array(trlens, dtype=int)
@@ -460,21 +464,27 @@ def save_full_sent_data(outfile, path="../boxscore-data/rotowire", multilabel_tr
         for i in range(1, len(revlabels)+1):
             f.write("%s %d \n" % (revlabels[i], i))
 
+    logger.info('Done.')
+
 
 def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotowire", test=False):
     # recreate vocab and labeldict
-    vocab = {}
+
+    logger.info('Loading vocabulary')
+
+    vocab = dict()
     with codecs.open(dict_pfx+".dict", "r", "utf-8") as f:
         for line in f:
             pieces = line.strip().split()
             vocab[pieces[0]] = int(pieces[1])
 
-    labeldict = {}
+    labeldict = dict()
     with codecs.open(dict_pfx+".labels", "r", "utf-8") as f:
         for line in f:
             pieces = line.strip().split()
             labeldict[pieces[0]] = int(pieces[1])
 
+    logger.info(f'Loading descriptions to be evaluated (at: {genfile}')
     with codecs.open(genfile, "r", "utf-8") as f:
         gens = f.readlines()
 
@@ -484,16 +494,18 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
     all_ents, players, teams, cities = get_ents(trdata)
 
     valfi = "test.json" if test else "valid.json"
+    sname = "test" if test else "validation"
     with codecs.open(os.path.join(path, valfi), "r", "utf-8") as f:
-        print(f'loading {valfi}')
-        valdata = json.load(f)
+        logger.info(f'Loading corresponding {sname} inputs (at: {valfi})')
+        evaldata = json.load(f)
 
-    print('len_valdata: ', len(valdata), 'len_gens: ', len(gens))
-    assert len(valdata) == len(gens)
+    assert len(evaldata) == len(gens), f'{len(evaldata)=} vs {len(gens)=}'
 
-    nugz = [] # to hold (sentence_tokens, [rels]) tuples
-    sent_reset_indices = {0} # sentence indices where a box/story is reset
-    for i, entry in enumerate(valdata):
+    logger.info('Vocabulary and data loaded.')
+
+    nugz = list()  # to hold (sentence_tokens, [rels]) tuples
+    sent_reset_indices = {0}  # sentence indices where a box/story is reset
+    for i, entry in tqdm.tqdm(enumerate(evaldata), total=len(evaldata), desc='parsing descriptions'):
         # CT - TODO - refactor this creation of summ, spans, tokens etc.
         summ = gens[i]
         spans = entry.get('spans', None)
@@ -506,7 +518,7 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
     psents, plens, pentdists, pnumdists, plabels = [], [], [], [], []
 
     rel_reset_indices = []
-    for t, tup in enumerate(nugz):
+    for t, tup in tqdm.tqdm(enumerate(nugz), total=len(nugz), desc="Creating evaluation examples"):
         if t in sent_reset_indices: # then last rel is the last of its box
             assert len(psents) == len(plabels)
             rel_reset_indices.append(len(psents))
@@ -514,8 +526,8 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
 
     append_labelnums(plabels)
 
-    print(len(psents), "prediction examples")
-
+    logger.info(f'{len(psents)} prediction examples')
+    logger.info('Serializing evaluation examples to disc')
     h5fi = h5py.File(outfile, "w")
     h5fi["valsents"] = np.array(psents, dtype=int)
     h5fi["vallens"] = np.array(plens, dtype=int)
@@ -524,6 +536,7 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
     h5fi["vallabels"] = np.array(plabels, dtype=int)
     h5fi["boxrestartidxs"] = np.array(np.array(rel_reset_indices)+1, dtype=int) # 1-indexed
     h5fi.close()
+    logger.info('All done.')
 
 ################################################################################
 
