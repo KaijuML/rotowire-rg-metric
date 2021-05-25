@@ -97,7 +97,6 @@ class Trainer:
     def compute_multilabel_acc(self, model, dataloader):
 
         correct, total, ignored = 0, 0, 0
-        pred5s, true5s = 0, 0
         nonnolabel = 0
 
         for batch in tqdm.tqdm(dataloader, desc="Computing accuracy"):
@@ -106,7 +105,7 @@ class Trainer:
             preds = model([batch['sents'], batch['entdists'], batch['numdists']])
 
             nonnolabel = nonnolabel + batch["labels"][:, 0].ne(self.ignore_idx).sum()
-            g_one_hot = torch.zeros(batch_size, preds.size(1))
+            g_one_hot = torch.zeros(batch_size, preds.size(1), device=model.device)
             preds = preds.argmax(dim=1)
 
             numpreds = 0
@@ -135,7 +134,7 @@ class Trainer:
 
         train_dataloader, val_dataloader, test_dataloader = loaders
 
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
         prev_loss = float('inf')
         for epoch in range(1, n_epochs + 1):
@@ -153,6 +152,6 @@ class Trainer:
             self.logger.info(f"saving current checkpoint to {filename}")
 
             evalloss = -accuracy
-            if evalloss >= prev_loss and lr > 0.0001:
+            if evalloss >= prev_loss and lr > 1e-4:
                 lr *= lr_decay
             prev_loss = evalloss

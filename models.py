@@ -18,6 +18,10 @@ class RgModel(torch.nn.Module):
             for vsize, esize in zip(vocab_sizes, emb_sizes)
         ])
 
+    @property
+    def device(self):
+        return next(iter(self.parameters())).device
+
     def save_hparams(self, **kwargs):
         self.hparams = kwargs
 

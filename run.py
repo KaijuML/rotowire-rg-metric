@@ -1,11 +1,12 @@
 from argparse import ArgumentParser
+import torch
 import os
 
 from models import RgModel, ConvRgModel, RecurrentRgModel, Ensemble
 from sampler import build_dataset_iter
 from inference import Inference
-from data import prep_data
 from trainer import Trainer
+from data import prep_data
 
 
 def get_parser():
@@ -39,7 +40,7 @@ def get_parser():
     group = parser.add_argument_group('Training options')
     group.add_argument('--epochs', dest='epochs', default=10, type=int,
                        help='Number of training epochs')
-    group.add_argument('--gpu', dest='gpu', default=1, type=int, help='gpu idx')
+    group.add_argument('--gpu', dest='gpu', default=None, type=int, help='gpu idx')
     group.add_argument('--batch-size', dest='batch_size', default=32, type=int,
                        help='batch size')
     group.add_argument('--lr', dest='lr', default=0.7, type=float,
@@ -71,13 +72,17 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args) if args else parser.parse_args()
 
+    device = torch.device('cpu' if args.gpu is None else f'cuda:{args.gpu}')
+
     datasets, min_dists, vocab_sizes, nlabels = prep_data(args.datafile,
                                                           args.preddata,
                                                           args.test,
                                                           args.just_eval)
     train, val, test = datasets
 
-    datakwargs = {'batch_size': args.batch_size, 'vocab_sizes': vocab_sizes}
+    datakwargs = {'batch_size': args.batch_size,
+                  'vocab_sizes': vocab_sizes,
+                  'device': device}
     loaders = [
         build_dataset_iter(train, **datakwargs),
         build_dataset_iter(val, **datakwargs, is_eval=True),
@@ -98,7 +103,7 @@ def main(args=None):
             if filename.endswith('.pt')
         ]
 
-        model = Ensemble(models, average_func=args.average_func)
+        model = Ensemble(models, average_func=args.average_func).to(device)
 
         min_entdist, min_numdist = min_dists
 
@@ -126,9 +131,18 @@ def main(args=None):
                             dropout=args.dropout)
         model.count_parameters(module_names=['embeddings', 'convolutions', 'linear'])
 
-    trainer = Trainer()
+    model.to(device)
+    trainer = Trainer(
+        logger=None,
+        save_directory="models",
+        max_grad_norm=args.max_grad_norm,
+        ignore_idx=args.ignore_idx)
 
-    return model, loaders
+    trainer.train(model,
+                  loaders,
+                  n_epochs=args.n_epochs,
+                  lr=args.lr,
+                  lr_decay=args.lr_decay)
 
 
 if __name__ == '__main__':
