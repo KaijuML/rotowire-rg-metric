@@ -263,7 +263,7 @@ def append_candidate_rels(entry, spans, summ, all_ents, prons, players, teams, c
 
 def get_datasets(path="../boxscore-data/rotowire"):
 
-    logger.info('Loading training data for the IE Extractor')
+    logger.info(f'Loading training data from {path}')
     with codecs.open(os.path.join(path, "train.json"), "r", "utf-8") as f:
         trdata = json.load(f)
 
@@ -429,7 +429,7 @@ def save_full_sent_data(outfile, path="../boxscore-data/rotowire", multilabel_tr
 
     logger.info(f'{len(testsents)} test examples')
 
-    logger.info('Serializing data to disc.')
+    logger.info(f'Serializing data to {outfile}')
     h5fi = h5py.File(outfile, "w")
     h5fi["trsents"] = np.array(trsents, dtype=int)
     h5fi["trlens"] = np.array(trlens, dtype=int)
@@ -527,7 +527,7 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
     append_labelnums(plabels)
 
     logger.info(f'{len(psents)} prediction examples')
-    logger.info('Serializing evaluation examples to disc')
+    logger.info(f'Serializing evaluation examples to: {outfile}')
     h5fi = h5py.File(outfile, "w")
     h5fi["valsents"] = np.array(psents, dtype=int)
     h5fi["vallens"] = np.array(plens, dtype=int)
