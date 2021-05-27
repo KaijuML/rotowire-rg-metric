@@ -100,7 +100,7 @@ python run.py \
 and a CONVolutional model with:
 
 ```bash
-python run.py 
+python run.py \
        --datafile $ROTOWIRE/output/training-data.h5 \
        --save-directory models \
        --model conv \
