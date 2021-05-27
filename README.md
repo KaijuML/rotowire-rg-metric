@@ -58,7 +58,6 @@ Training data can be created using the following command:
 ```bash
 python data_utils.py \
        -mode make_ie_data \
-       -test \
        -input_path $ROTOWIRE/json \
        -output_fi $ROTOWIRE/output/training-data.h5
 ```

@@ -407,7 +407,7 @@ def save_full_sent_data(outfile, path="../boxscore-data/rotowire", multilabel_tr
         trnumdists = [thing for i,thing in enumerate(trnumdists) if i not in ignore_idxs]
         trlabels = [thing for i,thing in enumerate(trlabels) if i not in ignore_idxs]
 
-    logger.info(f'{len(trsents)} validation examples')
+    logger.info(f'{len(trsents)} training examples')
 
     # do val, which we also consider multilabel
     max_vallen = max((len(tup[0]) for tup in datasets[1]))
