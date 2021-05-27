@@ -117,7 +117,8 @@ python run.py \
 
 Warning: sometimes, training is unstable and models might learn to predict NONE
 labels everytime after some epochs. Monitor your training, and restart with another
-seed if this happens.
+seed if this happens. This degenerate behavior can be spotted easily, when 
+accuracy is very high (near 100%), or even NaN, despite a recall close to or at 0.
 
 
 ### Using RG information extractor as a metric
