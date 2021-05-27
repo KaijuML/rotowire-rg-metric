@@ -7,8 +7,9 @@ import os
 
 class Inference:
     def __init__(self, vocab_prefix, min_entdist, min_numdist,
-                 ignore_idx=None, logger=None):
+                 ignore_idx=None, show_correctness=False, logger=None):
         self.ignore_idx = ignore_idx
+        self.show_correctness = show_correctness
 
         self.min_entdist, self.min_numdist = min_entdist, min_numdist
 
@@ -87,7 +88,7 @@ class Inference:
             preds = model([batch['sents'], batch['entdists'], batch['numdists']])
 
             # We create a tensor with 1 for every correct label, zero otherwise
-            g_one_hot = torch.zeros(batch_size, preds.size(1))
+            g_one_hot = torch.zeros(batch_size, preds.size(1), device=preds.device)
             numpreds = 0
 
             preds = preds.argmax(dim=1)
@@ -110,9 +111,8 @@ class Inference:
                 for idx, (pred, sent, ent_dist, num_dist) in enumerate(iterable):
                     candNum = candNum + 1
                     if boxscore_restarts and candNum in boxscore_restarts:
-                        for space_num in range(boxscore_restarts[candNum]):
+                        for space_num in range(boxscore_restarts.pop(candNum)):
                             tupfile.write("\n")
-                        boxscore_restarts.pop(candNum)
                         seen = dict()
 
                     if pred != self.ignore_idx:
@@ -122,10 +122,11 @@ class Inference:
                         tupfile.write(entarg + '|' + numarg + '|' + self.labels_vocab[int(pred)])
                         seen_tag = predkey in seen.keys()
                         if g_correct_buf[idx, 0] > 0:
-                            tupfile.write('|RIGHT')
+                            if self.show_correctness:
+                                tupfile.write('|RIGHT')
                             if seen_tag:
                                 ndupcorrects = ndupcorrects + 1
-                        else:
+                        elif self.show_correctness:
                             tupfile.write('|WRONG')
 
                         if seen_tag:

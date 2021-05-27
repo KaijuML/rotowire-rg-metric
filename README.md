@@ -150,10 +150,15 @@ python run.py \
        --datafile $ROTOWIRE/output/training-data.h5 \
        --preddata $ROTOWIRE/output/prep_predictions.h5 \
        --eval-models $ROTOWIRE/models \
+       --gpu 0 \
        --test \
        --ignore-idx 15 \
        --vocab-prefix $ROTOWIRE/output/training-data 
 ```
+
+Also note that if you are interested in reading the tuples created, you can use
+`--show-correctness` to add a `|RIGHT` or `|WRONG` tag to each tuple, depending
+on whether the generated tuple is correct or not.
 
 [comment]: <> (### Example use of the data_utils on the sliced rotowire data &#40;in valid mode against the ref&#41;)
 

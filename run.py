@@ -19,6 +19,10 @@ def get_parser():
                        action="store_true", help='just run evaluation script')
     group.add_argument('--test', dest='test', default=False,
                        action="store_true", help='use test data')
+    group.add_argument('--show-correctness', dest="show_correctness",
+                       action='store_true', help="When doing inference, add a "
+                                                 "sign |RIGHT or |WRONG to "
+                                                 "generated tuples")
 
     group = parser.add_argument_group('File system')
     group.add_argument('--datafile', dest='datafile',
