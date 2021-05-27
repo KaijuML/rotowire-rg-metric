@@ -7,12 +7,13 @@ The RG metric is computed using a neural information extraction network, which
 reads generated outputs and creates a (very simple) knowledge base of asserted facts. 
 For instance the sentence _"Lebron James scored 25 points [...]"_ would yield one record [Lebron James | 25 | PTS].
 
-This facts are then compared to true data and used as evaluation metrics for the generated outputs:
+These facts are then compared to true data and used as evaluation metrics for the generated outputs:
 
  - RG-# reports the total number of correctly asserted facts
  - RG-% reports the proportion of correct facts among all asserted facts
  
-Note that this method has several issues, which are talked about in 
+Note that you can find interesting discussion regarding Data-to-Text evaluation
+(esp. on RotoWire) in the following paper:
 [A Gold Standard Methodology for Evaluating Accuracy in Data-To-Text Systems][2] (Thomson, Reiter; INLG 2020)
 
 [1]: https://arxiv.org/abs/1707.08052
@@ -21,16 +22,15 @@ Note that this method has several issues, which are talked about in
 
 ## Why this repo?
 
-Original code can be found [here](https://github.com/harvardnlp/data2text). 
+Original code ([here](https://github.com/harvardnlp/data2text)) is written in 
+Python2 and neural networks are instantiated and trained using Lua code. 
+This makes it highly unusable on modern shared computing machines (due to 
+incompatibly in Python/CUDA versions) and difficult to read and understand when 
+trying to adapt them to other use cases.
 
-Original utils files are written in Python2 and neural networks are instantiated
-and trained using Lua code. This makes it highly unusable on modern shared computing 
-machines (due to incompatibly in Python/CUDA versions) and difficult to read and
-understand when trying to adapt them to other use cases.
+We ported the code with a minimal-changes policy, so that behavior stays the same at all points.
 
-We ported the code with a minimal change policies, so that behaviors stays the same at all points.
-
-Also note that we included the following list of change, which have zero impact 
+Also note that we included the following list of changes, which have zero impact 
 on results but provide quality of life improvements:
  
  - summaries can be considered as lists of spans (traditionally sentences), 
@@ -63,8 +63,9 @@ python data_utils.py \
        -output_fi $ROTOWIRE/output/training-data.h5
 ```
 
-Very important step: please check the file `$ROTOWIRE/output/training-data.labels` 
-and look at the index of label NONE. It will be used in almost all commands below via `--ignore-idx`
+Very important step: once training data is generated, please check the file 
+`$ROTOWIRE/output/training-data.labels` and have a look at the index of label NONE.
+It will be used in almost all commands below via `--ignore-idx`
 
 You can now train either an LSTM or a CONV model.
 RG metric is an ensemble of 3 LSTMs and 3 CONVs models.
@@ -86,12 +87,14 @@ You can train an LSTM model with
 python run.py \
        --datafile $ROTOWIRE/output/training-data.h5 \
        --save-directory $ROTOWIRE/models \
+       --model lstm \
        --gpu 0 \
        --num-epochs 10 \
-       --model lstm \
+       --batch-size 32 \
        --embedding-size 200 \
        --hidden-dim 700 \
-       --dropout 0.3 \
+       --lr 1 \
+       --dropout 0.5 \
        --ignore-idx 15
 ```
 
@@ -100,14 +103,22 @@ and a CONVolutional model with:
 ```bash
 python run.py 
        --datafile $ROTOWIRE/output/training-data.h5 \
-       --save-directory $ROTOWIRE/models \
+       --save-directory models \
+       --model conv \
        --gpu 0 \
-       --epochs 10 \
-       --model lstm \
+       --num-epochs 10 \
+       --batch-size 32 \
        --embedding-size 200 \
-       --hidden-dim 700 \
-       --dropout 0.3
+       --hidden-dim 500 \
+       --num-filters 200 \
+       --lr 0.7 \
+       --dropout 0.5 \
+       --ignore-idx 15 
 ```
+
+Warning: sometimes, training is unstable and models might learn to predict NONE
+labels everytime after some epochs. Monitor your training, and restart with another
+seed if this happens.
 
 
 ### Using RG information extractor as a metric
