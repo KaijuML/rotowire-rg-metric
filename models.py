@@ -2,6 +2,27 @@ import torch
 import os
 
 
+class JointEmbeddings(torch.nn.Module):
+    def __init__(self, vocab_sizes, emb_sizes):
+        super().__init__()
+        self.embeddings = torch.nn.ModuleList([
+            torch.nn.Embedding(vsize, esize)
+            for vsize, esize in zip(vocab_sizes, emb_sizes)
+        ])
+
+    def forward(self, inputs):
+        return torch.cat([
+            emb(_input) for emb, _input in zip(self.embeddings, inputs)
+        ], dim=2)
+
+    @property
+    def emb_dim(self):
+        return sum(module.embedding_dim for module in self.embeddings)
+
+    def __getitem__(self, item):
+        return self.embeddings[item]
+
+
 class RgModel(torch.nn.Module):
     """
     Base Rg model class, to be slightly modifed depending on which backbone
@@ -12,17 +33,25 @@ class RgModel(torch.nn.Module):
         super().__init__()
 
         self.hparams = None
-
-        self.embeddings = torch.nn.ModuleList([
-            torch.nn.Embedding(vsize, esize)
-            for vsize, esize in zip(vocab_sizes, emb_sizes)
-        ])
+        self.embeddings = JointEmbeddings(vocab_sizes, emb_sizes)
 
     @property
     def device(self):
         return next(iter(self.parameters())).device
 
-    def save_hparams(self, **kwargs):
+    def __getitem__(self, item):
+        if item != 0:
+            raise ValueError('Can only get embeddings (index=0) from a RgModel')
+        return self.embeddings
+
+    def uniform_initialization(self):
+        for mod in self.modules():
+            if hasattr(mod, "weight"):
+                torch.nn.init.uniform_(mod.weight, -.1, .1)
+            if hasattr(mod, "bias") and isinstance(mod.bias, torch.Tensor):
+                torch.nn.init.uniform_(mod.bias, -.1, .1)
+
+    def store_hparams(self, **kwargs):
         self.hparams = kwargs
 
     def save(self, directory, epoch, accuracy, recall):
@@ -51,15 +80,8 @@ class RgModel(torch.nn.Module):
 
     @property
     def emb_dim(self):
-        return sum(module.embedding_dim for module in self.embeddings)
-
-    def run_embeddings(self, inputs):
-        if len(inputs) != len(self.embeddings):
-            raise RuntimeError('Wrong number of embeddings: '
-                               f'{len(inputs)=} vs {len(self.embeddings)=}')
-        return torch.cat([
-            emb(_input) for emb, _input in zip(self.embeddings, inputs)
-        ], dim=2)
+        # return sum(module.embedding_dim for module in self.embeddings)
+        return self.embeddings.emb_dim
 
     def count_parameters(self, log=print, module_names=None):
         """
@@ -100,11 +122,11 @@ class RecurrentRgModel(RgModel):
 
     def __init__(self, vocab_sizes, emb_sizes, hidden_dim, nlabels, dropout=0):
         super().__init__(vocab_sizes, emb_sizes)
-        self.save_hparams(vocab_sizes=vocab_sizes,
-                          emb_sizes=emb_sizes,
-                          hidden_dim=hidden_dim,
-                          nlabels=nlabels,
-                          dropout=dropout)
+        self.store_hparams(vocab_sizes=vocab_sizes,
+                           emb_sizes=emb_sizes,
+                           hidden_dim=hidden_dim,
+                           nlabels=nlabels,
+                           dropout=dropout)
 
         self.rnn = torch.nn.LSTM(self.emb_dim, self.emb_dim, 1, bidirectional=True)
 
@@ -115,27 +137,26 @@ class RecurrentRgModel(RgModel):
             torch.nn.Linear(hidden_dim, nlabels)
         )
 
+        self.uniform_initialization()
+
     def forward(self, inputs):
-        embedded_inputs = self.run_embeddings(inputs)
-        embedded_inputs = embedded_inputs.transpose(0, 1).contiguous()
-
-        outputs = self.rnn(embedded_inputs)[0].max(0)[0]
-
-        return self.linear(outputs)
+        embedded_inputs = self.embeddings(inputs).transpose(0, 1).contiguous()
+        outputs = torch.max(self.rnn(embedded_inputs)[0], dim=0)[0]
+        return torch.nn.functional.softmax(self.linear(outputs), dim=-1)
 
 
 class ConvRgModel(RgModel):
 
     class_name = 'conv'
 
-    def __init__(self, vocab_sizes, emb_sizes, num_filters, hidden_dim, nlabels, dropout=0):
+    def __init__(self, vocab_sizes, emb_sizes, num_filters, hidden_dim, nlabels, dropout=.0):
         super().__init__(vocab_sizes, emb_sizes)
-        self.save_hparams(vocab_sizes=vocab_sizes,
-                          emb_sizes=emb_sizes,
-                          num_filters=num_filters,
-                          hidden_dim=hidden_dim,
-                          nlabels=nlabels,
-                          dropout=dropout)
+        self.store_hparams(vocab_sizes=vocab_sizes,
+                           emb_sizes=emb_sizes,
+                           num_filters=num_filters,
+                           hidden_dim=hidden_dim,
+                           nlabels=nlabels,
+                           dropout=dropout)
 
         kernel_widths = [2, 3, 5]
         self.convolutions = torch.nn.ModuleList([
@@ -147,30 +168,30 @@ class ConvRgModel(RgModel):
         ])
 
         self.linear = torch.nn.Sequential(
+            torch.nn.Dropout(dropout),
             torch.nn.Linear(3 * num_filters, hidden_dim),
             torch.nn.ReLU(),
             torch.nn.Dropout(dropout),
             torch.nn.Linear(hidden_dim, nlabels)
         )
 
-    def run_convolutions(self, inputs):
+        self.uniform_initialization()
 
+    def run_convolutions(self, inputs):
         return torch.cat([
             torch.max(conv(inputs), dim=2)[0]
             for conv in self.convolutions
         ], dim=1)
 
     def forward(self, inputs):
-        embedded_inputs = self.run_embeddings(inputs)
-        embedded_inputs = embedded_inputs.transpose(1, 2).contiguous()
-
+        embedded_inputs = self.embeddings(inputs).transpose(1, 2).contiguous()
         outputs = self.run_convolutions(embedded_inputs)
-
-        return self.linear(outputs)
+        return torch.nn.functional.softmax(self.linear(outputs), dim=-1)
 
 
 class Ensemble(torch.nn.Module):
     def __init__(self, models, average_func='arithmetic'):
+        super().__init__()
         self.average_func = average_func
         self.models = torch.nn.ModuleList(models)
 

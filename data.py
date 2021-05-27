@@ -1,4 +1,5 @@
 from torch.utils.data import Dataset as PytorchDataset
+from utils import logger
 
 import numpy as np
 import torch
@@ -13,7 +14,7 @@ def prep_data(train_filename, eval_filename=None, is_test=False, is_just_eval=Fa
     val = datasets[next(iter(datasets))]
 
     test = None
-    if eval_filename is not None:
+    if eval_filename not in {None, ''}:
         test = load_datasets(eval_filename, do_val=True).pop('val')
 
     min_entdist = min(train['entdists'].min(), val['entdists'].min())
@@ -55,6 +56,7 @@ def make_datasets(h5_filename, sets=None):
     sets = sets if sets is not None else ['tr']
     assert all(dname in {'tr', 'val', 'test'} for dname in sets)
 
+    logger.info(f'Reading file: {h5_filename}')
     file = h5py.File(h5_filename, mode="r")
 
     datasets = {dname: dict() for dname in {'tr', 'val', 'test'}}

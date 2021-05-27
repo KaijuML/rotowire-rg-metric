@@ -5,6 +5,7 @@ import os
 from models import RgModel, ConvRgModel, RecurrentRgModel, Ensemble
 from sampler import build_dataset_iter
 from inference import Inference
+from utils import logger
 from trainer import Trainer
 from data import prep_data
 
@@ -22,10 +23,10 @@ def get_parser():
     group = parser.add_argument_group('File system')
     group.add_argument('--datafile', dest='datafile',
                        help='path to hdf5 file containing train/val data')
-    group.add_argument('--preddata', dest='preddata', default='',
+    group.add_argument('--preddata', dest='preddata', default=None,
                        help='path to hdf5 file containing candidate relations '
                             'from generated data')
-    group.add_argument('--savefile', dest='savefile', default='',
+    group.add_argument('--save-directory', dest='save_directory', default='',
                        help='path to a directory where to model should be saved')
     group.add_argument('--eval-models', dest='eval_models', default=None,
                        help='path to a directory with trained extractor models')
@@ -33,12 +34,14 @@ def get_parser():
                        help='prefix of .dict and .labels files')
 
     group = parser.add_argument_group('Evaluation options')
+    group.add_argument('--ignore-idx', dest='ignore_idx', default=None, type=int,
+                       help="The index of NONE label in your .label file")
     group.add_argument('--average-func', dest='average_func', default='arithmetic',
                        choices=['geometric', 'arithmetic'],
                        help='Use geometric/arithmetic mean to ensemble models')
 
     group = parser.add_argument_group('Training options')
-    group.add_argument('--epochs', dest='epochs', default=10, type=int,
+    group.add_argument('--num-epochs', dest='num_epochs', default=10, type=int,
                        help='Number of training epochs')
     group.add_argument('--gpu', dest='gpu', default=None, type=int, help='gpu idx')
     group.add_argument('--batch-size', dest='batch_size', default=32, type=int,
@@ -68,20 +71,34 @@ def get_parser():
     return parser
 
 
+def configure_process(args, logger=None):
+    """
+    Sets the seed and device for the current run
+    """
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    device = torch.device('cpu' if args.gpu is None else f'cuda:{args.gpu}')
+
+    if logger is not None:
+        logger.info(f'Current run is using seed={args.seed} and {device=}')
+
+    return device
+
+
 def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args) if args else parser.parse_args()
 
-    device = torch.device('cpu' if args.gpu is None else f'cuda:{args.gpu}')
+    device = configure_process(args, logger)
 
-    datasets, min_dists, vocab_sizes, nlabels = prep_data(args.datafile,
+    datasets, min_dists, paddings, nlabels = prep_data(args.datafile,
                                                           args.preddata,
                                                           args.test,
                                                           args.just_eval)
     train, val, test = datasets
 
     datakwargs = {'batch_size': args.batch_size,
-                  'vocab_sizes': vocab_sizes,
+                  'vocab_sizes': paddings,
                   'device': device}
     loaders = [
         build_dataset_iter(train, **datakwargs),
@@ -92,7 +109,7 @@ def main(args=None):
     emb_sizes = [args.embedding_size,
                  args.embedding_size // 2,
                  args.embedding_size // 2]
-    vocab_sizes = [p + 1 for p in vocab_sizes]
+    vocab_sizes = [p + 1 for p in paddings]
 
     if args.just_eval:
 
@@ -121,7 +138,7 @@ def main(args=None):
                                  hidden_dim=args.hidden_dim,
                                  nlabels=nlabels,
                                  dropout=args.dropout)
-        model.count_parameters(module_names=['embeddings', 'rnn', 'linear'])
+        module_names = ['embeddings', 'rnn', 'linear']
     else:
         model = ConvRgModel(vocab_sizes=vocab_sizes,
                             emb_sizes=emb_sizes,
@@ -129,18 +146,22 @@ def main(args=None):
                             hidden_dim=args.hidden_dim,
                             nlabels=nlabels,
                             dropout=args.dropout)
-        model.count_parameters(module_names=['embeddings', 'convolutions', 'linear'])
+        module_names=['embeddings', 'convolutions', 'linear']
+
+    logger.info(model)
+    model.count_parameters(log=logger.info, module_names=module_names)
 
     model.to(device)
     trainer = Trainer(
-        logger=None,
-        save_directory="models",
+        paddings=paddings,
+        logger=logger,
+        save_directory=args.save_directory,
         max_grad_norm=args.max_grad_norm,
         ignore_idx=args.ignore_idx)
 
     trainer.train(model,
                   loaders,
-                  n_epochs=args.n_epochs,
+                  n_epochs=args.num_epochs,
                   lr=args.lr,
                   lr_decay=args.lr_decay)
 

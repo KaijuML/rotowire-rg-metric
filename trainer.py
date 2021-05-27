@@ -1,5 +1,7 @@
+from models import RecurrentRgModel
 import torch
 import tqdm
+import os
 
 
 class MultilabelCrossEntropyLoss(torch.nn.Module):
@@ -8,11 +10,10 @@ class MultilabelCrossEntropyLoss(torch.nn.Module):
     In the multilabel cases, probas of correct classes are summed.
     """
 
-    def __init__(self, ignore_idx=None, reduction=True):
+    def __init__(self, reduction=True):
         super(MultilabelCrossEntropyLoss, self).__init__()
-        self.ignore_idx = ignore_idx
         self.reduction = reduction
-        self.tol = 1e-5
+        self.tol = 1e-6
 
     def forward(self, prd, tgt):
         """
@@ -22,35 +23,16 @@ class MultilabelCrossEntropyLoss(torch.nn.Module):
                     labels are correct
         :return: the loss, averaged over batch dim if self.reduction is True
         """
-        assert prd.size(0) == tgt.size(0)
+        assert prd.size(0) == tgt.size(0)  # same batch_size
 
-        num_correct_labels = tgt[:, -1:]
-
-        # identify items with no correct label, or only the ignore_idx
-        if self.ignore_idx is not None:
-            num_correct_labels -= tgt[:, :-1].eq(self.ignore_idx).sum(dim=1, keepdim=True)
-        index = num_correct_labels.squeeze(1).gt(0).nonzero().squeeze(1).long()
-
-        # remove such items
-        prd = prd.index_select(dim=0, index=index)
-        tgt = tgt.index_select(dim=0, index=index)
-
-        # replace ignore_idx by -1 (which is padding in this code)
+        num_correct_labels = tgt[:, -1]
         labels = tgt[:, :-1]
-        if self.ignore_idx is not None:
-            labels = torch.where(labels.eq(self.ignore_idx),
-                                 torch.full(labels.size(), -1),
-                                 labels)
-
-        # Compute the softmax over logits
-        prd = torch.nn.functional.softmax(prd, dim=1)
 
         loss = torch.tensor(0.0).to(prd.device)
-        for _prd, _tgt in zip(prd, labels):
+        for _prd, _tgt, _n in zip(prd, labels, num_correct_labels):
 
             # Get sum of probas over all correct labels
-            index = (~_tgt.eq(-1)).nonzero().squeeze(1)
-            _loss = _prd.index_select(0, index=index).sum()
+            _loss = _prd.index_select(0, index=_tgt[:_n]).sum()
 
             # Add its log to current running loss
             loss -= torch.log(_loss + self.tol)
@@ -62,47 +44,46 @@ class MultilabelCrossEntropyLoss(torch.nn.Module):
 
 
 class Trainer:
-    def __init__(self, logger, save_directory, max_grad_norm=None, ignore_idx=None):
+    def __init__(self,
+                 paddings,
+                 logger,
+                 save_directory=None,
+                 max_grad_norm=5,
+                 ignore_idx=None):
+
         self.logger = logger
 
+        self.word_pad, self.ent_dist_pad, self.num_dist_pad = paddings
+
         self.save_directory = save_directory
+        if self.save_directory and not os.path.exists(self.save_directory):
+            os.makedirs(self.save_directory)
 
         self.ignore_idx = ignore_idx
 
-        self.max_grad_norm = max_grad_norm
-        self.optimizer = None
-
         self.criterion = MultilabelCrossEntropyLoss()
+        self.max_grad_norm = max_grad_norm
 
-    def run_one_epoch(self, model, dataloader, epoch):
-        running_loss = 0
+    def compute_multilabel_acc(self, model, dataloader, break_after=None, log=True):
 
-        model.train()
-        for batch in tqdm.tqdm(dataloader, desc=f"Epoch {epoch}"):
-            self.optimizer.zero_grad()
-            prd = model([batch['sents'], batch['entdists'], batch['numdists']])
-            tgt = batch['labels']
-
-            loss = self.criterion(prd, tgt)
-            loss.backward()
-
-            running_loss += loss.item()
-
-            if (clip := self.max_grad_norm) is not None:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
-            self.optimizer.step()
-
-        return running_loss
-
-    def compute_multilabel_acc(self, model, dataloader):
+        model.eval()
 
         correct, total, ignored = 0, 0, 0
         nonnolabel = 0
 
-        for batch in tqdm.tqdm(dataloader, desc="Computing accuracy"):
+        break_after = break_after or len(dataloader)
+        for bidx, batch in tqdm.tqdm(enumerate(dataloader),
+                                     total=break_after,
+                                     desc="Computing accuracy"):
+
+            # Usefull to run only a few iterations when debugging
+            if bidx >= break_after:
+                break
+
             batch_size = batch['sents'].size(0)
 
-            preds = model([batch['sents'], batch['entdists'], batch['numdists']])
+            with torch.no_grad():
+                preds = model([batch['sents'], batch['entdists'], batch['numdists']])
 
             nonnolabel = nonnolabel + batch["labels"][:, 0].ne(self.ignore_idx).sum()
             g_one_hot = torch.zeros(batch_size, preds.size(1), device=model.device)
@@ -124,34 +105,87 @@ class Trainer:
         accuracy = correct / total
         recall = correct / nonnolabel
 
-        self.logger.info(f"recall: {recall.item():.3f}%")
-        self.logger.info(f"ignored: {ignored/(ignored+total):.3f}%")
+        if log:
+            self.logger.info(f"recall: {recall.item():.3f}%")
+            self.logger.info(f"ignored: {ignored/(ignored+total):.3f}%")
 
         return accuracy, recall
 
+    def run_one_epoch(self, model, dataloader, learning_rate, epoch):
+
+        running_loss = 0.0
+        model.train()
+
+        with torch.no_grad():
+            model[0][0].weight[self.word_pad].zero_()
+            model[0][1].weight[self.ent_dist_pad].zero_()
+            model[0][2].weight[self.num_dist_pad].zero_()
+
+        with tqdm.tqdm(total=len(dataloader)) as progressbar:
+            for step, batch in enumerate(dataloader, 1):
+                model.zero_grad()
+
+                prd = model([batch['sents'], batch['entdists'], batch['numdists']])
+                tgt = batch['labels']
+
+                loss = self.criterion(prd, tgt)
+                loss.backward()
+
+                with torch.no_grad():
+                    running_loss += loss.item()
+
+                    if isinstance(model, RecurrentRgModel):
+                        model[0][0].weight.grad[self.word_pad].zero_()
+                        model[0][1].weight.grad[self.ent_dist_pad].zero_()
+                        model[0][2].weight.grad[self.num_dist_pad].zero_()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(),
+                                                       self.max_grad_norm, 2)
+
+                    for p in model.parameters():
+                        p.add_(-learning_rate * p.grad)
+
+                    # optimizer.step()
+                    model[0][0].weight[self.word_pad].zero_()
+                    model[0][1].weight[self.ent_dist_pad].zero_()
+                    model[0][2].weight[self.num_dist_pad].zero_()
+
+                progressbar.update(1)
+
+                new_desc = f"Training (Epoch={epoch}, avg_loss={(running_loss/step):.3f})"
+                progressbar.set_description(new_desc, refresh=True)
+
+        return running_loss
+
     def train(self, model, loaders, n_epochs=1, lr=0.1, lr_decay=1):
-        model.count_parameters(self.logger.info)
 
-        train_dataloader, val_dataloader, test_dataloader = loaders
+        train_dataloader, val_dataloader, _ = loaders
 
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        self.logger.info('Running 3 validation batches before training to catch bugs')
+        _ = self.compute_multilabel_acc(model, val_dataloader,
+                                        break_after=3, log=False)
 
         prev_loss = float('inf')
-        for epoch in range(1, n_epochs + 1):
-            self.logger.info(f"Epoch {epoch} ({lr=})")
 
-            trainloss = self.run_one_epoch(model, train_dataloader, epoch)
-            trainloss = trainloss.item() / len(train_dataloader)
+        with tqdm.tqdm(total=n_epochs) as progressbar:
 
-            self.logger.info(f"train loss: {trainloss:.5f}")
+            progressbar.set_description(f'Training total (acc=..., rec=...)',
+                                        refresh=True)
 
-            accuracy, recall = self.compute_multilabel_acc(model, val_dataloader)
-            self.logger.info(f"acc:{accuracy.item()}")
+            for epoch in range(1, n_epochs+1):
 
-            filename = model.save(self.save_directory, epoch, accuracy, recall)
-            self.logger.info(f"saving current checkpoint to {filename}")
+                trainloss = self.run_one_epoch(model, train_dataloader, lr, epoch)
+                trainloss = trainloss / len(train_dataloader)
 
-            evalloss = -accuracy
-            if evalloss >= prev_loss and lr > 1e-4:
-                lr *= lr_decay
-            prev_loss = evalloss
+                accuracy, recall = self.compute_multilabel_acc(model, val_dataloader, log=False)
+
+                _ = model.save(self.save_directory, epoch, accuracy, recall)
+
+                evalloss = -accuracy
+                if evalloss >= prev_loss and lr > 1e-4:
+                    lr *= lr_decay
+                prev_loss = evalloss
+
+                progressbar.update(1)
+
+                new_desc = f'Training total (acc={accuracy:.3f}, rec={recall:.3f})'
+                progressbar.set_description(new_desc, refresh=True)
