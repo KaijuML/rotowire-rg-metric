@@ -23,9 +23,9 @@ Note that this method has several issues, which are talked about in
 
 Original code can be found [here](https://github.com/harvardnlp/data2text). 
 
-Orinal utils files are written in Python2 and neural networks are instanciated
+Original utils files are written in Python2 and neural networks are instantiated
 and trained using Lua code. This makes it highly unusable on modern shared computing 
-machines (due to incopatibily in Python/CUDA versions) and difficult to read and
+machines (due to incompatibly in Python/CUDA versions) and difficult to read and
 understand when trying to adapt them to other use cases.
 
 We ported the code with a minimal change policies, so that behaviors stays the same at all points.
@@ -33,12 +33,16 @@ We ported the code with a minimal change policies, so that behaviors stays the s
 Also note that we included the following list of change, which have zero impact 
 on results but provide quality of life improvements:
  
- - summaries can be considered as lists of spans (tradionality sentences), 
+ - summaries can be considered as lists of spans (traditionally sentences), 
    which can be provided by users. By default, the script uses nltk's sent_tokenize 
-   to split the summaries in sentences, but we have experimented spliting summaries
+   to split the summaries in sentences, but we have experimented splitting summaries
    at the clause level (e.g. _"The Hawks scored 105 points, while the Bulls scored 98 points."_
    can be split at _", while"_).
  - I have added wherever possible logging information and tqdm's progressbar
+
+
+__RESULTS:__ models trained using this repo obtain the same level of recall/accuracy
+than orginal models in LUA (i.e. ~95% accuracy and ~70% recall)
  
  
 ### Data
@@ -52,45 +56,107 @@ where `$ROTOWIRE` is the directory in which everything is stored / ran.
 Training data can be created using the following command:
 
 ```bash
-python data_utils.py -mode make_ie_data -test -input_path $ROTOWIRE/json -output_fi $ROTOWIRE/output/training-data.h5
+python data_utils.py \
+       -mode make_ie_data \
+       -test \
+       -input_path $ROTOWIRE/json \
+       -output_fi $ROTOWIRE/output/training-data.h5
 ```
+
+Very important step: please check the file `$ROTOWIRE/output/training-data.labels` 
+and look at the index of label NONE. It will be used in almost all commands below via `--ignore-idx`
+
+You can now train either an LSTM or a CONV model.
+RG metric is an ensemble of 3 LSTMs and 3 CONVs models.
+
+Note that checkpoints will be save after each epoch, with their filename indicating
+the accuracy and recall on a validation set (not seen during training). I have trained
+3 models of each, using arbitrary random seeds. If you want to know everything,
+I've used `--seed` in `1234`, `5678`, `3435`. Each time, I selected the best
+performing checkpoint in terms of accuracy & recall.
+
+After training a model, select the checkpoint you want to keep,
+rename it something like `lstm1`, and remove other checkpoints.
+You can then train another model, and repeat this process.
+(This is not mendatory, just easier to track which models you want to use later on)
 
 You can train an LSTM model with 
 
 ```bash
-python run.py --datafile $ROTOWIRE/output/training-data.h5 --save-directory $ROTOWIRE/models --gpu 0 --num-epochs 10 --model lstm --embedding-size 200 --hidden-dim 700 --dropout 0.3 --ignore-idx 15
+python run.py \
+       --datafile $ROTOWIRE/output/training-data.h5 \
+       --save-directory $ROTOWIRE/models \
+       --gpu 0 \
+       --num-epochs 10 \
+       --model lstm \
+       --embedding-size 200 \
+       --hidden-dim 700 \
+       --dropout 0.3 \
+       --ignore-idx 15
 ```
 
 and a CONVolutional model with:
 
 ```bash
-python run.py --datafile $ROTOWIRE/output/training-data.h5 --save-directory $ROTOWIRE/models --gpu 0 --epochs 10 --model lstm --embedding-size 200 --hidden-dim 700 --dropout 0.3
+python run.py 
+       --datafile $ROTOWIRE/output/training-data.h5 \
+       --save-directory $ROTOWIRE/models \
+       --gpu 0 \
+       --epochs 10 \
+       --model lstm \
+       --embedding-size 200 \
+       --hidden-dim 700 \
+       --dropout 0.3
 ```
 
-Please note that a checkpoint will be saved every epoch, with validation accuracy and recall in its filename.
-Select the one you want to keep, rename it something like `lstm1`, and remove other checkpoints.
-You can then train another model, and repeat this process.
 
 ### Using RG information extractor as a metric
 
-Assuming the generated texts can be found at `$ROTOWIRE/gens/predictions.txt`,
-you can compute its RG score using the following command:
+This steps assumes that:
+ - the generated texts can be found at `$ROTOWIRE/gens/predictions.txt`
+ - you want to use all models contained in `$ROTOWIRE/models/`
+
+You first need to prep data for the RG metric, using (not that if you include `-test` 
+the script will assume you want to compare to test data, while not including it means
+using validation data):
 
 ```bash
-
+python data_utils.py \
+      -mode prep_gen_data \
+      -test \
+      -gen_fi $ROTOWIRE/gens/predictions.txt \
+      -dict_pfx $ROTOWIRE/output/training-data \
+      -output_fi $ROTOWIRE/output/prep_predictions.h5 \
+      -input_path $ROTOWIRE/json
 ```
 
-### Example use of the data_utils on the sliced rotowire data (in valid mode against the ref)
-`ROTODIR='data/slice_based_rotowire'`
+After this is done, you can compute RG scores and generate the list of extracted records,
+using the following command:
 
-`python data_utils.py -mode make_ie_data -input_path $ROTODIR/json -output_fi $ROTODIR/output/output.h5`
+```bash
+python run.py \
+       --just-eval \
+       --datafile $ROTOWIRE/output/training-data.h5 \
+       --preddata $ROTOWIRE/output/prep_predictions.h5 \
+       --eval-models $ROTOWIRE/models \
+       --test \
+       --ignore-idx 15 \
+       --vocab-prefix $ROTOWIRE/output/training-data 
+```
 
-`python data_utils.py -mode prep_gen_data -gen_fi $ROTODIR/refs/ht_text_validation_BASE.txt -dict_pfx $ROTODIR/output/output -output_fi $ROTODIR/output/prep_gen_valid_out.h5 -input_path $ROTODIR/json`
+[comment]: <> (### Example use of the data_utils on the sliced rotowire data &#40;in valid mode against the ref&#41;)
 
-### Example use of the data_utils on the sliced rotowire data (in test mode with Puduppully AI gens)
-`ROTODIR='data/orig_rotowire'`
+[comment]: <> (`ROTODIR='data/slice_based_rotowire'`)
 
-`python data_utils.py -mode make_ie_data -test -input_path $ROTODIR/json -output_fi $ROTODIR/output/output.h5`
+[comment]: <> (`python data_utils.py -mode make_ie_data -input_path $ROTODIR/json -output_fi $ROTODIR/output/output.h5`)
 
-`python data_utils.py -mode prep_gen_data -test -gen_fi $ROTODIR/gens/rebuffel_test_gen_not_paper.txt -dict_pfx $ROTODIR/output/output -output_fi $ROTODIR/output/prep_gen_test_out.h5 -input_path $ROTODIR/json`
+[comment]: <> (`python data_utils.py -mode prep_gen_data -gen_fi $ROTODIR/refs/ht_text_validation_BASE.txt -dict_pfx $ROTODIR/output/output -output_fi $ROTODIR/output/prep_gen_valid_out.h5 -input_path $ROTODIR/json`)
+
+[comment]: <> (### Example use of the data_utils on the sliced rotowire data &#40;in test mode with Puduppully AI gens&#41;)
+
+[comment]: <> (`ROTODIR='data/orig_rotowire'`)
+
+[comment]: <> (`python data_utils.py -mode make_ie_data -test -input_path $ROTODIR/json -output_fi $ROTODIR/output/output.h5`)
+
+[comment]: <> (`python data_utils.py -mode prep_gen_data -test -gen_fi $ROTODIR/gens/rebuffel_test_gen_not_paper.txt -dict_pfx $ROTODIR/output/output -output_fi $ROTODIR/output/prep_gen_test_out.h5 -input_path $ROTODIR/json`)
 
