@@ -41,7 +41,7 @@ on results but provide quality of life improvements:
  - I have added wherever possible logging information and tqdm's progressbar
 
 
-__RESULTS:__ models trained using this repo obtain the same level of recall/accuracy
+__RESULTS:__ models trained using this repo obtains the same level of recall/accuracy
 than orginal models in LUA (i.e. ~95% accuracy and ~70% recall)
  
  
@@ -70,7 +70,7 @@ It will be used in almost all commands below via `--ignore-idx`
 You can now train either an LSTM or a CONV model.
 RG metric is an ensemble of 3 LSTMs and 3 CONVs models.
 
-Note that checkpoints will be save after each epoch, with their filename indicating
+Note that checkpoints will be saved after each epoch, with their filename indicating
 the accuracy and recall on a validation set (not seen during training). I have trained
 3 models of each, using arbitrary random seeds. If you want to know everything,
 I've used `--seed` in `1234`, `5678`, `3435`. Each time, I selected the best
@@ -79,7 +79,7 @@ performing checkpoint in terms of accuracy & recall.
 After training a model, select the checkpoint you want to keep,
 rename it something like `lstm1`, and remove other checkpoints.
 You can then train another model, and repeat this process.
-(This is not mendatory, just easier to track which models you want to use later on)
+(This is not mandatory, just easier to track which models you want to use later on)
 
 You can train an LSTM model with 
 
@@ -123,7 +123,7 @@ seed if this happens.
 
 ### Using RG information extractor as a metric
 
-This steps assumes that:
+This step assumes that:
  - the generated texts can be found at `$ROTOWIRE/gens/predictions.txt`
  - you want to use all models contained in `$ROTOWIRE/models/`
 
@@ -159,20 +159,3 @@ python run.py \
 Also note that if you are interested in reading the tuples created, you can use
 `--show-correctness` to add a `|RIGHT` or `|WRONG` tag to each tuple, depending
 on whether the generated tuple is correct or not.
-
-[comment]: <> (### Example use of the data_utils on the sliced rotowire data &#40;in valid mode against the ref&#41;)
-
-[comment]: <> (`ROTODIR='data/slice_based_rotowire'`)
-
-[comment]: <> (`python data_utils.py -mode make_ie_data -input_path $ROTODIR/json -output_fi $ROTODIR/output/output.h5`)
-
-[comment]: <> (`python data_utils.py -mode prep_gen_data -gen_fi $ROTODIR/refs/ht_text_validation_BASE.txt -dict_pfx $ROTODIR/output/output -output_fi $ROTODIR/output/prep_gen_valid_out.h5 -input_path $ROTODIR/json`)
-
-[comment]: <> (### Example use of the data_utils on the sliced rotowire data &#40;in test mode with Puduppully AI gens&#41;)
-
-[comment]: <> (`ROTODIR='data/orig_rotowire'`)
-
-[comment]: <> (`python data_utils.py -mode make_ie_data -test -input_path $ROTODIR/json -output_fi $ROTODIR/output/output.h5`)
-
-[comment]: <> (`python data_utils.py -mode prep_gen_data -test -gen_fi $ROTODIR/gens/rebuffel_test_gen_not_paper.txt -dict_pfx $ROTODIR/output/output -output_fi $ROTODIR/output/prep_gen_test_out.h5 -input_path $ROTODIR/json`)
-
