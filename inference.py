@@ -1,4 +1,4 @@
-from log_utils import logger as default_logger
+from utils import logger as default_logger
 
 import torch
 import tqdm

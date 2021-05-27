@@ -38,12 +38,18 @@ def build_dataset_iter(dataset, batch_size, vocab_sizes, device=None, is_eval=Fa
 
 
 class IterOnDevice:
-    def __init__(self, iterable, device):
-        self.iterable = iterable
+    def __init__(self, dataloader, device):
+        self.dataloader = dataloader
         self.device = device
 
+    def __hasattr__(self, attr):
+        return hasattr(self.dataloader, attr)
+
+    def __getattr__(self, attr):
+        return getattr(self.dataloader, attr)
+
     def __len__(self):
-        return len(self.iterable)
+        return len(self.dataloader)
 
     def to_device(self, batch):
         return {
@@ -52,7 +58,7 @@ class IterOnDevice:
         }
 
     def __iter__(self):
-        for batch in self.iterable:
+        for batch in self.dataloader:
             yield self.to_device(batch)
 
 
