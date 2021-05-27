@@ -1,3 +1,4 @@
+from utils import logger
 import torch
 import os
 
@@ -55,7 +56,7 @@ class RgModel(torch.nn.Module):
         self.hparams = kwargs
 
     def save(self, directory, epoch, accuracy, recall):
-        filename = f'{self.class_name.lower()}.epoch_{epoch}'
+        filename = f'{self.class_name.lower()}.epoch={epoch}'
         filename += f'.acc={accuracy:.3f}.rec={recall:.3f}.pt'
         filename = os.path.join(directory, filename)
 
@@ -73,6 +74,7 @@ class RgModel(torch.nn.Module):
 
     @staticmethod
     def from_file(filename):
+        logger.info(f'Loading model from: {filename}')
         ckpt = torch.load(filename)
         model = available_models[ckpt['model_class']](**ckpt['model_hparams'])
         model.load_state_dict(ckpt['model_state_dict'])
