@@ -1,7 +1,7 @@
 from text2num import text2num, NumberException
 from collections import Counter, defaultdict
 from nltk import sent_tokenize
-from log_utils import logger
+from utils import logger
 
 import numpy as np
 import argparse
