@@ -96,9 +96,9 @@ def main(args=None):
     device = configure_process(args, logger)
 
     datasets, min_dists, paddings, nlabels = prep_data(args.datafile,
-                                                          args.preddata,
-                                                          args.test,
-                                                          args.just_eval)
+                                                       args.preddata,
+                                                       args.test,
+                                                       args.just_eval)
     train, val, test = datasets
 
     datakwargs = {'batch_size': args.batch_size,
@@ -129,7 +129,9 @@ def main(args=None):
         min_entdist, min_numdist = min_dists
 
         inference = Inference(args.vocab_prefix, min_entdist, min_numdist,
-                              ignore_idx=args.ignore_idx, logger=None)
+                              ignore_idx=args.ignore_idx,
+                              show_correctness=args.show_correctness,
+                              logger=None)
 
         inference.run(loaders[2], model, f'{args.preddata}-tuples.txt')
 
