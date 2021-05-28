@@ -84,8 +84,13 @@ class Inference:
 
             batch_size = batch['sents'].size(0)
 
-            # compute the prediction for each model individualy
-            preds = model([batch['sents'], batch['entdists'], batch['numdists']])
+            # compute the prediction using the model (at this point the "model"
+            # is an ensemble of models, and all things related to ensemble are
+            # dealt with in it.
+            with torch.no_grad():
+                preds = model([batch['sents'],
+                               batch['entdists'],
+                               batch['numdists']])
 
             # We create a tensor with 1 for every correct label, zero otherwise
             g_one_hot = torch.zeros(batch_size, preds.size(1), device=preds.device)
