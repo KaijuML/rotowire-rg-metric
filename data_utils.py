@@ -508,7 +508,7 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
     for i, entry in tqdm.tqdm(enumerate(evaldata), total=len(evaldata), desc='parsing descriptions'):
         # CT - TODO - refactor this creation of summ, spans, tokens etc.
         summ = gens[i]
-        spans = entry.get('spans', None)
+        spans = None
 
         append_candidate_rels(entry, spans, summ, all_ents, prons, players, teams, cities, nugz)
         sent_reset_indices.add(len(nugz))
