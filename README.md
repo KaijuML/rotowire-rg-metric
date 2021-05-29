@@ -22,7 +22,7 @@ Note that you can find interesting discussion regarding Data-to-Text evaluation
 
 ## Why this repo?
 
-Original code ([here](https://github.com/harvardnlp/data2text)) is written in 
+Original code ([here][3]) is written in 
 Python2 and neural networks are instantiated and trained using Lua code. 
 This makes it highly unusable on modern shared computing machines (due to 
 incompatibly in Python/CUDA versions) and difficult to read and understand when 
@@ -43,12 +43,29 @@ on results but provide quality of life improvements:
 
 __RESULTS:__ models trained using this repo obtains the same level of recall/accuracy
 than orginal models in LUA (i.e. ~95% accuracy and ~70% recall)
+
+[3]: https://github.com/harvardnlp/data2text
  
  
 ### Data
 
-We assume data is in the original Rotowire format, found at `$ROTOWIRE/json`, 
-where `$ROTOWIRE` is the directory in which everything is stored / ran. 
+We assume that everything takes place inside a `$ROTOWIRE` directory, where 
+everything will be stored when running the scripts from this repo.
+The commands are pretty explicit so that you can easily change anything if
+you desire. By defaults, the `$ROTOWIRE` directory is assumed to have the following
+subdirectory:
+ 
+ - `json` where the game data are
+ - `models` where trained RG models are stored
+ - `output` where everything created by the script is stored: vocabularies, 
+   training examples, extracted list of mentions, etc.
+ - `gens` where you can place generated texts that you wish to evaluate
+
+You can download the original RotoWire data by following instructions on the
+[original rotowire repo][4]. 
+Simply clone the repo and `tar -xvf rotowire.tar.bz2` will do the trick.
+
+[4]: https://github.com/harvardnlp/boxscore-data
  
 
 ### Training the RG information extractor
@@ -157,6 +174,10 @@ on whether the generated tuple is correct or not.
 
 
 # Known issues
+
+Here is a list of know issues. If you want to contribute to a fix, or spot a new
+issue, do not hesitate to contact us. Public github issues are best, but emails
+also work.
 
  - Training is unstable sometimes, and models might learn to predict NONE 
    labels everytime after some epochs. Monitor your training, and restart with 
