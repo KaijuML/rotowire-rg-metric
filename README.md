@@ -163,8 +163,8 @@ on whether the generated tuple is correct or not.
    another seed if this happens. This pathological behavior can be spotted easily, 
    when accuracy is very high (near 100%), or even NaN, despite a recall close to or at 0.
 
- - The `data_utils.py` script has some trouble with which name corresponds to which entity. 
-   This leads to instances where the sentence "The San Antonio Spurs" is read 
+ - The `data_utils.py` script has some troubles with which name corresponds to which entity. 
+   This leads to instances where the phrase "The San Antonio Spurs" is read 
    as two distinct entities, "San Antonio Spurs" (ok) and "Spurs" (not ok).
    This impacts the performances of the RG metric. This is issue can also be 
    observed in the original script (which we changed minimally).
