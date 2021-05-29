@@ -115,11 +115,6 @@ python run.py \
        --ignore-idx 15 
 ```
 
-Warning: sometimes, training is unstable and models might learn to predict NONE
-labels everytime after some epochs. Monitor your training, and restart with another
-seed if this happens. This degenerate behavior can be spotted easily, when 
-accuracy is very high (near 100%), or even NaN, despite a recall close to or at 0.
-
 
 ### Using RG information extractor as a metric
 
@@ -159,3 +154,17 @@ python run.py \
 Also note that if you are interested in reading the tuples created, you can use
 `--show-correctness` to add a `|RIGHT` or `|WRONG` tag to each tuple, depending
 on whether the generated tuple is correct or not.
+
+
+# Known issues
+
+ - Training is unstable sometimes, and models might learn to predict NONE 
+   labels everytime after some epochs. Monitor your training, and restart with 
+   another seed if this happens. This pathological behavior can be spotted easily, 
+   when accuracy is very high (near 100%), or even NaN, despite a recall close to or at 0.
+
+ - The `data_utils.py` script has some trouble with which name corresponds to which entity. 
+   This leads to instances where the sentence "The San Antonio Spurs" is read 
+   as two distinct entities, "San Antonio Spurs" (ok) and "Spurs" (not ok).
+   This impacts the performances of the RG metric. This is issue can also be 
+   observed in the original script (which we changed minimally).
