@@ -53,7 +53,7 @@ We assume that everything takes place inside a `$ROTOWIRE` directory, where
 everything will be stored when running the scripts from this repo.
 The commands are pretty explicit so that you can easily change anything if
 you desire. By defaults, the `$ROTOWIRE` directory is assumed to have the following
-subdirectory:
+sub-directories:
  
  - `json` where the game data are
  - `models` where trained RG models are stored
@@ -79,7 +79,7 @@ python data_utils.py \
        -output_fi $ROTOWIRE/output/training-data.h5
 ```
 
-Very important step: once training data is generated, please check the file 
+__Very important step__: once training data is generated, please check the file 
 `$ROTOWIRE/output/training-data.labels` and have a look at the index of label NONE.
 It will be used in almost all commands below via `--ignore-idx`
 
