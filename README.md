@@ -17,7 +17,7 @@ Note that you can find interesting discussion regarding Data-to-Text evaluation
 [A Gold Standard Methodology for Evaluating Accuracy in Data-To-Text Systems][2] (Thomson, Reiter; INLG 2020)
 
 [1]: https://arxiv.org/abs/1707.08052
-[2]: https://www.aclweb.org/anthology/2020.inlg-1.6.pdf
+[2]: https://www.aclweb.org/anthology/2020.inlg-1.22.pdf
 
 
 ## Why this repo?
