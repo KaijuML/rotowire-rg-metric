@@ -42,12 +42,21 @@ on results but provide quality of life improvements:
 
 
 __RESULTS:__ models trained using this repo obtains the same level of recall/accuracy
-than orginal models in LUA (i.e. ~95% accuracy and ~70% recall)
+than orginal models in LUA (i.e. ~95% accuracy and ~70% recall) 
+Also, I have evaluated the models from [Data-to-text Generation with Macro Planning][4] 
+(Ratish Puduppully and Mirella Lapata; TACL 2021). Results are very similar, the difference
+in RG% is still being investigated.
+
+| code          | RG#  | RG%  |
+| ------------- |:----:| ----:|
+| Original LUA  | 30.8 | 94.4 |
+| This repo     | 30.8 | 97.8 |
 
 [3]: https://github.com/harvardnlp/data2text
+[4]: https://github.com/KaijuML/data2text-macro-plan-py
  
  
-### Data
+## Data
 
 We assume that everything takes place inside a `$ROTOWIRE` directory, where 
 everything will be stored when running the scripts from this repo.
@@ -62,13 +71,13 @@ sub-directories:
  - `gens` where you can place generated texts that you wish to evaluate
 
 You can download the original RotoWire data by following instructions on the
-[original rotowire repo][4]. 
+[original rotowire repo][5]. 
 Simply clone the repo and `tar -xvf rotowire.tar.bz2` will do the trick.
 
-[4]: https://github.com/harvardnlp/boxscore-data
+[5]: https://github.com/harvardnlp/boxscore-data
  
 
-### Training the RG information extractor
+## Training the RG information extractor
 
 Training data can be created using the following command:
 
@@ -133,10 +142,11 @@ python run.py \
 ```
 
 
-### Using RG information extractor as a metric
+## Using RG information extractor as a metric
 
 This step assumes that:
- - the generated texts can be found at `$ROTOWIRE/gens/predictions.txt`
+ - the generated texts you want to evaluate is named $FILENAME
+ - the generated texts can be found at `$ROTOWIRE/gens/$FILENAME`
  - you want to use all models contained in `$ROTOWIRE/models/`
 
 You first need to prep data for the RG metric, using (not that if you include `-test` 
@@ -147,7 +157,7 @@ using validation data):
 python data_utils.py \
       -mode prep_gen_data \
       -test \
-      -gen_fi $ROTOWIRE/gens/predictions.txt \
+      -gen_fi $ROTOWIRE/gens/$FILENAME \
       -dict_pfx $ROTOWIRE/output/training-data \
       -output_fi $ROTOWIRE/output/prep_predictions.h5 \
       -input_path $ROTOWIRE/json
@@ -173,7 +183,7 @@ Also note that if you are interested in reading the tuples created, you can use
 on whether the generated tuple is correct or not.
 
 
-# Known issues
+## Known issues & Contribution
 
 Here is a list of know issues. If you want to contribute to a fix, or spot a new
 issue, do not hesitate to contact us. Public github issues are best, but emails
