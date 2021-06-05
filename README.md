@@ -19,6 +19,11 @@ Note that you can find interesting discussion regarding Data-to-Text evaluation
 [1]: https://arxiv.org/abs/1707.08052
 [2]: https://www.aclweb.org/anthology/2020.inlg-1.22.pdf
 
+Quick jumps to sections of interest:
+
+ - [Training of the RG metric](#training-the-rg-information-extractor)
+ - [Evaluation using the RG metric](#using-rg-information-extractor-as-a-metric)
+
 
 ## Why this repo?
 
