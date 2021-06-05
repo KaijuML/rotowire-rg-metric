@@ -1,5 +1,5 @@
 from text2num import text2num, NumberException
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, OrderedDict
 from nltk import sent_tokenize
 from utils import logger
 
@@ -26,6 +26,13 @@ plural_prons = {"they", "They", "them", "Them", "their", "Their"}
 number_words = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
                 "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty",
                 "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand"}
+
+
+# ordering the relations correctly
+class DefaultListOrderedDict(OrderedDict):
+    def __missing__(self,k):
+        self[k] = []
+        return self[k]
 
 
 def get_ents(dat):
@@ -117,9 +124,10 @@ def extract_entities(sent, all_ents, prons, prev_ents=None, resolve_prons=False,
     return sent_ents
 
 
+# fixing bug of number words handling
 def annoying_number_word(sent, i):
-    ignores = {"three point", "three - point", "three - pt", "three pt"}
-    return " ".join(sent[i:i+3]) not in ignores and " ".join(sent[i:i+2]) not in ignores
+    ignores = set(["three point", "three - point", "three - pt", "three pt", "three - pointers", "three - pointer", "three pointers"])
+    return " ".join(sent[i:i + 3]) in ignores or " ".join(sent[i:i + 2]) in ignores
 
 
 def extract_numbers(sent):
@@ -139,7 +147,7 @@ def extract_numbers(sent):
             i += 1
         elif toke in number_words and not annoying_number_word(sent, i): # get longest span  (this is kind of stupid)
             j = 1
-            while i+j <= len(sent) and sent[i+j] in number_words and not annoying_number_word(sent, i+j):
+            while i+j < len(sent) and sent[i+j] in number_words and not annoying_number_word(sent, i+j):
                 j += 1
             try:
                 sent_nums.append((i, i+j, text2num(" ".join(sent[i:i+j]))))
@@ -234,6 +242,7 @@ def get_rels(entry, ents, nums, players, teams, cities):
                             found = True
                 if not found:
                     rels.append((ent, numtup, "NONE", None)) # should i specialize the NONE labels too?
+    rels.sort(key=lambda rel: rel[1][0])
     return rels
 
 
@@ -325,7 +334,7 @@ def append_multilabeled_data(tup, sents, lens, entdists, numdists, labels, vocab
     sentlen = len(sent)
     sent.extend([-1] * (max_len - sentlen))
     # get all the labels for the same rel
-    unique_rels = defaultdict(list)
+    unique_rels = DefaultListOrderedDict()
     for rel in tup[1]:
         ent, num, label, idthing = rel
         unique_rels[ent, num].append(label)
