@@ -44,16 +44,15 @@ on results but provide quality of life improvements:
 __RESULTS:__ models trained using this repo obtains the same level of recall/accuracy
 than orginal models in LUA (i.e. ~95% accuracy and ~70% recall) 
 Also, I have evaluated the models from [Data-to-text Generation with Macro Planning][4] 
-(Ratish Puduppully and Mirella Lapata; TACL 2021). Results are very similar, the difference
-in RG% is still being investigated.
+(Ratish Puduppully and Mirella Lapata; TACL 2021). 
 
 | code          | RG#  | RG%  |
 | ------------- |:----:| ----:|
-| Original LUA  | 30.8 | 94.4 |
-| This repo     | 30.8 | 97.8 |
+| Original LUA  | 42.1 | 97.6 |
+| This repo     | 39.2 | 97.7 |
 
 [3]: https://github.com/harvardnlp/data2text
-[4]: https://github.com/KaijuML/data2text-macro-plan-py
+[4]: https://github.com/ratishsp/data2text-macro-plan-py
  
  
 ## Data
