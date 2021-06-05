@@ -117,9 +117,10 @@ def extract_entities(sent, all_ents, prons, prev_ents=None, resolve_prons=False,
     return sent_ents
 
 
+# fixing bug of number words handling
 def annoying_number_word(sent, i):
-    ignores = {"three point", "three - point", "three - pt", "three pt"}
-    return " ".join(sent[i:i+3]) not in ignores and " ".join(sent[i:i+2]) not in ignores
+    ignores = set(["three point", "three - point", "three - pt", "three pt", "three - pointers", "three - pointer", "three pointers"])
+    return " ".join(sent[i:i + 3]) in ignores or " ".join(sent[i:i + 2]) in ignores
 
 
 def extract_numbers(sent):
@@ -139,7 +140,7 @@ def extract_numbers(sent):
             i += 1
         elif toke in number_words and not annoying_number_word(sent, i): # get longest span  (this is kind of stupid)
             j = 1
-            while i+j <= len(sent) and sent[i+j] in number_words and not annoying_number_word(sent, i+j):
+            while i+j < len(sent) and sent[i+j] in number_words and not annoying_number_word(sent, i+j):
                 j += 1
             try:
                 sent_nums.append((i, i+j, text2num(" ".join(sent[i:i+j]))))
