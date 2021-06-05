@@ -149,11 +149,11 @@ python run.py \
 ## Using RG information extractor as a metric
 
 This step assumes that:
- - the generated texts you want to evaluate is named $FILENAME
+ - the generated texts you want to evaluate are in a file named $FILENAME
  - the generated texts can be found at `$ROTOWIRE/gens/$FILENAME`
  - you want to use all models contained in `$ROTOWIRE/models/`
 
-You first need to prep data for the RG metric, using (not that if you include `-test` 
+You first need to prep the data for the RG metric, using (note that if you include `-test` 
 the script will assume you want to compare to test data, while not including it means
 using validation data):
 
