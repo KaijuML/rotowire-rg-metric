@@ -24,6 +24,9 @@ Quick jumps to sections of interest:
  - [Training of the RG metric](#training-the-rg-information-extractor)
  - [Evaluation using the RG metric](#using-rg-information-extractor-as-a-metric)
 
+You can download [pretrained models](https://dl.orangedox.com/rg-models). 
+See instructions for how to use those in the [Evaluation Section](#using-rg-information-extractor-as-a-metric). 
+
 
 ## Why this repo?
 
@@ -69,7 +72,7 @@ you desire. By defaults, the `$ROTOWIRE` directory is assumed to have the follow
 sub-directories:
  
  - `json` where the game data are
- - `models` where trained RG models are stored
+ - `models` where trained RG models are stored ([pretrained models](https://dl.orangedox.com/rg-models)).
  - `output` where everything created by the script is stored: vocabularies, 
    training examples, extracted list of mentions, etc.
  - `gens` where you can place generated texts that you wish to evaluate
@@ -147,6 +150,8 @@ python run.py \
 
 
 ## Using RG information extractor as a metric
+
+You can download [pretrained models](https://dl.orangedox.com/rg-models). 
 
 This step assumes that:
  - the generated texts you want to evaluate are in a file named $FILENAME
