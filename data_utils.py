@@ -493,7 +493,7 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
             pieces = line.strip().split()
             labeldict[pieces[0]] = int(pieces[1])
 
-    logger.info(f'Loading descriptions to be evaluated (at: {genfile}')
+    logger.info(f'Loading descriptions to be evaluated from: {genfile}')
     with codecs.open(genfile, "r", "utf-8") as f:
         gens = f.readlines()
 
@@ -505,7 +505,7 @@ def prep_generated_data(genfile, dict_pfx, outfile, path="../boxscore-data/rotow
     valfi = "test.json" if test else "valid.json"
     sname = "test" if test else "validation"
     with codecs.open(os.path.join(path, valfi), "r", "utf-8") as f:
-        logger.info(f'Loading corresponding {sname} inputs (at: {valfi})')
+        logger.info(f'Loading corresponding {sname} inputs (from: {valfi})')
         evaldata = json.load(f)
 
     assert len(evaldata) == len(gens), f'{len(evaldata)=} vs {len(gens)=}'
