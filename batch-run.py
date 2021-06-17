@@ -63,9 +63,7 @@ def get_parser():
 
 def build_container(args, gen_filename, gpu):
 
-    print('Building container')
-
-    # remove .txt from gen_filename and add .h5
+    # remove .txt from gen_filename to add .h5 or .json later on
     filename_pfx = gen_filename[:-4]
 
     return Container(
@@ -103,10 +101,8 @@ def single_main(args):
     # Run data_utils.py in -mode prep_gen_data
     prep_generated_data(gen_fi, dict_pfx, output_fi, path=input_path, test=args.test)
 
-    # Run run.py
-    results = inference_run_main(args.to_namespace())
-
-    print(results.__dict__)
+    # Run run.py (results are serialized inside the function)
+    _ = inference_run_main(args.to_namespace())
 
 
 def main(args=None):

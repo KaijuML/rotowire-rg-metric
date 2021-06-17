@@ -9,19 +9,10 @@ import os
 class InferenceResults:
     def __init__(self, correct, ndupcorrects, total, nduptotal):
 
-        self.prec = (correct / total).item()
-        self.nodup_prec = (correct - ndupcorrects) / (total - nduptotal)
-        self.total_correct = correct.item()
-        self.nodup_correct = correct - ndupcorrects
-
-        if not isinstance(self.prec, float):
-            self.prec = float(self.prec.item())
-        if not isinstance(self.nodup_prec, float):
-            self.nodup_precec = float(self.nodup_prec.item())
-        if not isinstance(self.total_correct, float):
-            self.total_correct = float(self.total_correct.item())
-        if not isinstance(self.nodup_correct, float):
-            self.nodup_correct = float(self.nodup_correct.item())
+        self.prec = float((correct / total).item())
+        self.nodup_prec = float((correct - ndupcorrects) / (total - nduptotal))
+        self.total_correct = float(correct.item())
+        self.nodup_correct = float(correct - ndupcorrects)
 
     def log(self, logger):
         logger.info(f"prec {self.prec}")
