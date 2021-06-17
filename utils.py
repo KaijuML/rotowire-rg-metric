@@ -1,6 +1,8 @@
 from logging.handlers import RotatingFileHandler
-from argparse import ArgumentParser
+from itertools import zip_longest
+from argparse import Namespace
 import logging
+import json
 import os
 
 
@@ -49,3 +51,58 @@ class Logger:
 
 
 logger = Logger()
+
+
+_container_sentinel = object()
+
+
+class Container:
+    """
+    Dummy class that can be instantiated with arbitrary key-word arguments
+    """
+    def __init__(self, **kwargs):
+        self.__setstate__(kwargs)
+
+    def __setstate__(self, state):
+        """Used by the python builtin multiprocessing library"""
+        for key, value in state.items():
+            setattr(self, key, value)
+
+    def __getstate__(self):
+        """Used by the python builtin multiprocessing library"""
+        return self.__dict__
+
+    def to_namespace(self):
+        return Namespace(**self.__getstate__())
+
+    def pop(self, item, default=_container_sentinel):
+        if not hasattr(self, item):
+            if default is not _container_sentinel:
+                return default
+            self._raise_unknown_attr(item)
+
+        value = getattr(self, item)
+        delattr(self, item)
+        return value
+
+    @staticmethod
+    def _raise_unknown_attr(item):
+        raise RuntimeError(f'<{item}> is not a known attribute of this Container.'
+                           f' This code uses Containers at places where I need '
+                           f'an object that behaves like another object (e.g. '
+                           f'a batch, a namespace, etc.). Find where this '
+                           f'container is used in the code and fix this issue!')
+
+    def __getattr__(self, item):
+        """Only called when item is not known to the container"""
+        self._raise_unknown_attr(item)
+
+    def __repr__(self):
+        try:
+            return f'Container({json.dumps(self.__getstate__(), indent=4)})'
+        except TypeError:
+            return f'Container(size={len(self.__getstate__())})'
+
+
+def grouped(iterable, n):
+    return zip_longest(*[iter(iterable)]*n)

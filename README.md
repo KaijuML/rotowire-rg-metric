@@ -158,6 +158,12 @@ This step assumes that:
  - the generated texts can be found at `$ROTOWIRE/gens/$FILENAME`
  - you want to use all models contained in `$ROTOWIRE/models/`
 
+Using RG works in two steps, which can be run sequentially, using the detailed
+explanations below. It can be tedious to run these steps in sequence for several
+gens (for instance when doing checkpoint selection based on RG scores). To ease
+this usage, I also provide `batch-run.py` which can run everything in parallel
+on several gpus (see [below](#running-inference-on-several-gens)).
+
 You first need to prep the data for the RG metric, using (note that if you include `-test` 
 the script will assume you want to compare to test data, while not including it means
 using validation data):
@@ -191,6 +197,24 @@ Also note that if you are interested in reading the tuples created, you can use
 `--show-correctness` to add a `|RIGHT` or `|WRONG` tag to each tuple, depending
 on whether the generated tuple is correct or not.
 
+You can also add `--store-results $ROTOWIRE/output/scores.json` to save the 
+results to a json file.
+
+### Running inference on several gens
+
+As explained above, you can use models in parallel using the following command:
+(Note that for simplicity I assume the correct folder structure. If you changed
+everything, then you'll have to edit the script manually.)
+
+```bash
+python batch-run.py \
+       --rotowire-folder $ROTOWIRE \
+       --vocab-prefix training-data \
+       --ignore-idx 15 \
+       --gpus 0 1 2 3 \
+       --ckpts-per-gpu 3 
+```
+
 
 ## Known issues & Contribution
 
@@ -208,3 +232,6 @@ also work.
    as two distinct entities, "San Antonio Spurs" (ok) and "Spurs" (not ok).
    This impacts the performances of the RG metric. This is issue can also be 
    observed in the original script (which we changed minimally).
+   
+ - The `batch-run.py` script somewhat runs everything in parallel. As such, it's
+   rather difficult to use the printed logs. 

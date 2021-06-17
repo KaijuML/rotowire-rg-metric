@@ -2,7 +2,43 @@ from utils import logger as default_logger
 
 import torch
 import tqdm
+import json
 import os
+
+
+class InferenceResults:
+    def __init__(self, correct, ndupcorrects, total, nduptotal):
+
+        self.prec = (correct / total).item()
+        self.nodup_prec = (correct - ndupcorrects) / (total - nduptotal)
+        self.total_correct = correct.item()
+        self.nodup_correct = correct - ndupcorrects
+
+        if not isinstance(self.prec, float):
+            self.prec = float(self.prec.item())
+        if not isinstance(self.nodup_prec, float):
+            self.nodup_precec = float(self.nodup_prec.item())
+        if not isinstance(self.total_correct, float):
+            self.total_correct = float(self.total_correct.item())
+        if not isinstance(self.nodup_correct, float):
+            self.nodup_correct = float(self.nodup_correct.item())
+
+    def log(self, logger):
+        logger.info(f"prec {self.prec}")
+        logger.info(f"nodup_prec {self.nodup_prec}")
+        logger.info(f"total correct {self.total_correct}")
+        logger.info(f"nodup correct {self.nodup_correct}")
+
+    def serialize(self, filename, overwrite=False):
+        if os.path.exists(filename) and not overwrite:
+            raise RuntimeError(f'File already exists: {filename}')
+        with open(filename, mode="w", encoding='utf8') as f:
+            json.dump({
+                'prec': self.prec,
+                'nodup_prec': self.nodup_prec,
+                'total_correct': self.total_correct,
+                'nodup_correct': self.nodup_correct,
+            }, f)
 
 
 class Inference:
@@ -147,9 +183,7 @@ class Inference:
                 for p in range(v):
                     tupfile.write("\n")
 
-        acc = correct / total
-        self.logger.info("prec {}".format(acc.item()))
-        self.logger.info("nodup prec {}".format((correct - ndupcorrects) / (total - nduptotal)))
-        self.logger.info("total correct {}".format(correct.item()))
-        self.logger.info("nodup correct {}".format(correct - ndupcorrects))
-        return acc
+        results = InferenceResults(correct, ndupcorrects, total, nduptotal)
+        results.log(self.logger)
+
+        return results

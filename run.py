@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 import torch
 import os
 
@@ -36,6 +36,8 @@ def get_parser():
                        help='path to a directory with trained extractor models')
     group.add_argument('--vocab-prefix', dest='vocab_prefix', default='',
                        help='prefix of .dict and .labels files')
+    group.add_argument('--store-results', dest='store_results', required=False,
+                       help="If specified, save to this filename")
 
     group = parser.add_argument_group('Evaluation options')
     group.add_argument('--ignore-idx', dest='ignore_idx', default=None, type=int,
@@ -91,7 +93,13 @@ def configure_process(args, logger=None):
 
 def main(args=None):
     parser = get_parser()
-    args = parser.parse_args(args) if args else parser.parse_args()
+    if args is None:
+        args = parser.parse_args()
+    elif isinstance(args, list):
+        args = parser.parse_args(args)
+    elif not isinstance(args, Namespace):
+        raise ValueError('<args> must be Namespace or list of remaining args! '
+                         f'Instead: {type(args)=}')
 
     device = configure_process(args, logger)
 
@@ -109,11 +117,6 @@ def main(args=None):
         build_dataset_iter(val, **datakwargs, is_eval=True),
         build_dataset_iter(test, **datakwargs, is_eval=True)
     ]
-
-    emb_sizes = [args.embedding_size,
-                 args.embedding_size // 2,
-                 args.embedding_size // 2]
-    vocab_sizes = [p + 1 for p in paddings]
 
     if args.just_eval:
 
@@ -133,9 +136,17 @@ def main(args=None):
                               show_correctness=args.show_correctness,
                               logger=None)
 
-        inference.run(loaders[2], model, f'{args.preddata}-tuples.txt')
+        results = inference.run(loaders[2], model, f'{args.preddata}-tuples.txt')
 
-        return
+        if args.store_results is not None:
+            results.serialize(args.store_results)
+
+        return results
+
+    emb_sizes = [args.embedding_size,
+                 args.embedding_size // 2,
+                 args.embedding_size // 2]
+    vocab_sizes = [p + 1 for p in paddings]
 
     # Building models
     if args.model == 'lstm':
