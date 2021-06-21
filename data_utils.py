@@ -152,9 +152,10 @@ def extract_numbers(sent):
             try:
                 sent_nums.append((i, i+j, text2num(" ".join(sent[i:i+j]))))
             except NumberException:
-                print(sent)
-                print(sent[i:i+j])
-                assert False
+                pass
+                # print(sent)
+                # print(sent[i:i+j])
+                # assert False
             i += j
         else:
             i += 1
