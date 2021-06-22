@@ -380,7 +380,7 @@ def save_full_sent_data(outfile, path="../boxscore-data/rotowire", multilabel_tr
     vocab = dict(((wrd, i+1) for i, wrd in enumerate(word_counter.keys())))
     labelset = set()
     [labelset.update([rel[2] for rel in tup[1]]) for tup in datasets[0]]
-    labeldict = dict(((label, i+1) for i, label in enumerate(labelset)))
+    labeldict = dict(((label, i+1) for i, label in enumerate(sorted(labelset))))
 
     # save stuff
     trsents, trlens, trentdists, trnumdists, trlabels = [], [], [], [], []
