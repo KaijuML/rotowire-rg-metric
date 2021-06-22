@@ -17,16 +17,21 @@ def prep_data(train_filename, eval_filename=None, is_test=False, is_just_eval=Fa
     if eval_filename not in {None, ''}:
         test = load_datasets(eval_filename, do_val=True).pop('val')
 
+        
+    # See original code:
+    #    https://github.com/harvardnlp/data2text/blob/master/extractor.lua#L81
     min_entdist = min(train['entdists'].min(), val['entdists'].min())
     min_numdist = min(train['numdists'].min(), val['numdists'].min())
+    
+    max_entdist = train['entdists'].max()
+    max_numdist = train['numdists'].max()
 
     train.shift_dists(min_entdist=min_entdist, min_numdist=min_numdist)
     val.shift_dists(min_entdist=min_entdist, min_numdist=min_numdist)
-
+    
     if test is not None:
         test.clamp_dists(min_entdist=min_entdist, min_numdist=min_numdist,
-                         max_entdist=train['entdists'].max(),
-                         max_numdist=train['numdists'].max())
+                         max_entdist=max_entdist, max_numdist=max_numdist)
         test.shift_dists(min_entdist=min_entdist, min_numdist=min_numdist)
 
     nlabels = train['labels'].max().item() + 1
@@ -89,8 +94,8 @@ class Dataset(PytorchDataset):
         self.sents = sents
 
     def shift_dists(self, min_entdist, min_numdist):
-        self.entdists.add_(-min_entdist)
-        self.numdists.add_(-min_numdist)
+        self.entdists.add_(-min_entdist + 1)
+        self.numdists.add_(-min_numdist + 1)
 
     def __getitem__(self, item):
         if isinstance(item, (int, slice)):
