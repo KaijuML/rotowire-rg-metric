@@ -21,6 +21,7 @@ Note that you can find interesting discussion regarding Data-to-Text evaluation
 
 Quick jumps to sections of interest:
 
+ - [Requirements](#data-and-requirements)
  - [Training of the RG metric](#training-the-rg-information-extractor)
  - [Evaluation using the RG metric](#using-rg-information-extractor-as-a-metric)
 
@@ -63,7 +64,22 @@ Also, I have evaluated the models from [Data-to-text Generation with Macro Plann
 [4]: https://github.com/ratishsp/data2text-macro-plan-py
  
  
-## Data
+## Data and Requirements
+
+This code runs with `Python==3.8` and `torch==1.9`. My advice is to use a virtual 
+environment, for instance with conda: `conda create --name rg python=3.8`  
+Once your env is activated (e.g. `conda activate rg`), you can install all requirements 
+using:
+
+```bash
+pip install -r requirements.txt
+```
+
+Every instructions contained in this section can be run using the following command:
+
+```bash
+./intialize-repo.sh
+```
 
 We assume that everything takes place inside a `$ROTOWIRE` directory, where 
 everything will be stored when running the scripts from this repo.
@@ -78,10 +94,8 @@ sub-directories:
  - `gens` where you can place generated texts that you wish to evaluate
 
 You can download the original RotoWire data by following instructions on the
-[original rotowire repo][5]. 
+[original rotowire repo](https://github.com/harvardnlp/boxscore-data). 
 Simply clone the repo and `tar -xvf rotowire.tar.bz2` will do the trick.
-
-[5]: https://github.com/harvardnlp/boxscore-data
  
 
 ## Training the RG information extractor
@@ -127,7 +141,7 @@ python run.py \
        --hidden-dim 700 \
        --lr 1 \
        --dropout 0.5 \
-       --ignore-idx 15
+       --ignore-idx 1
 ```
 
 and a CONVolutional model with:
@@ -145,7 +159,7 @@ python run.py \
        --num-filters 200 \
        --lr 0.7 \
        --dropout 0.5 \
-       --ignore-idx 15 
+       --ignore-idx 1
 ```
 
 
@@ -189,8 +203,8 @@ python run.py \
        --eval-models $ROTOWIRE/models \
        --gpu 0 \
        --test \
-       --ignore-idx 15 \
-       --vocab-prefix $ROTOWIRE/output/training-data 
+       --ignore-idx 1 \
+       --vocab-prefix $ROTOWIRE/output/training-data
 ```
 
 Also note that if you are interested in reading the tuples created, you can use
@@ -210,9 +224,9 @@ everything, then you'll have to edit the script manually.)
 python batch-run.py \
        --rotowire-folder $ROTOWIRE \
        --vocab-prefix training-data \
-       --ignore-idx 15 \
+       --ignore-idx 1 \
        --gpus 0 1 2 3 \
-       --ckpts-per-gpu 3 
+       --ckpts-per-gpu 3
 ```
 
 
