@@ -78,7 +78,7 @@ pip install -r requirements.txt
 Every instructions contained in this section can be run using the following command:
 
 ```bash
-./intialize-repo.sh
+./initialize-repo.sh
 ```
 
 We assume that everything takes place inside a `$ROTOWIRE` directory, where 
@@ -118,9 +118,8 @@ RG metric is an ensemble of 3 LSTMs and 3 CONVs models.
 
 Note that checkpoints will be saved after each epoch, with their filename indicating
 the accuracy and recall on a validation set (not seen during training). I have trained
-3 models of each, using arbitrary random seeds. If you want to know everything,
-I've used `--seed` in `1234`, `5678`, `3435`. Each time, I selected the best
-performing checkpoint in terms of accuracy & recall.
+3 models of each, using arbitrary random seeds (set `--seed 1234` for instance).
+Each time, I selected the best performing checkpoint in terms of accuracy & recall.
 
 After training a model, select the checkpoint you want to keep,
 rename it something like `lstm1`, and remove other checkpoints.
@@ -165,7 +164,11 @@ python run.py \
 
 ## Using RG information extractor as a metric
 
-You can download [pretrained models](https://dl.orangedox.com/rg-models). 
+You can download [pretrained models](https://dl.orangedox.com/rg-models).
+
+You will also need the training data, to get vocabularies. If you trained models
+yourself, everything is already done; otherwise, run the first step of the
+[training section](#training-the-rg-information-extractor) and it'll be good.
 
 This step assumes that:
  - the generated texts you want to evaluate are in a file named $FILENAME
