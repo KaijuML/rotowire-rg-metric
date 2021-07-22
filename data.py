@@ -94,8 +94,8 @@ class Dataset(PytorchDataset):
         self.sents = sents
 
     def shift_dists(self, min_entdist, min_numdist):
-        self.entdists.add_(-min_entdist + 1)
-        self.numdists.add_(-min_numdist + 1)
+        self.entdists.add_(-min_entdist)
+        self.numdists.add_(-min_numdist)
 
     def __getitem__(self, item):
         if isinstance(item, (int, slice)):
